@@ -1,0 +1,25 @@
+{
+    "project_info": {
+        "project_number": "727616460135",
+        "project_id": "superscav-ce605",
+        "storage_bucket": "superscav-ce605.firebasestorage.app"
+    },
+    "client": [{
+        "client_info": {
+            "mobilesdk_app_id": "1:727616460135:android:1cc0d6ab14e9686745cbc2",
+            "android_client_info": {
+                "package_name": "com.nograss.superscav"
+            }
+        },
+        "oauth_client": [],
+        "api_key": [{
+            "current_key": "AIzaSyBRzLGQcGxw0isWTj-_9-QXEzpcT3H4u9w"
+        }],
+        "services": {
+            "appinvite_service": {
+                "other_platform_oauth_client": []
+            }
+        }
+    }],
+    "configuration_version": "1"
+}
