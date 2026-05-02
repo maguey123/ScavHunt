@@ -2,76 +2,120 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 
 class GameService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final _db = FirebaseFirestore.instance;
 
-  // 🔤 Generate 5-character join code
-  String _generateJoinCode() {
+  String _generateCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rand = Random();
-    return List.generate(5, (_) => chars[rand.nextInt(chars.length)]).join();
+    final rng = Random.secure();
+    return List.generate(5, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 
-  /// 🆕 Create a new game with password protection
   Future<Map<String, String>> createGame(
-    String hostId,
+    String uid,
     String title,
     String description, {
-    required String password, // ✅ Added password parameter
+    String password = '',
+    int? durationMinutes,
+    bool isPublished = false,
   }) async {
-    final code = _generateJoinCode();
-    final doc = await _db.collection('games').add({
-      'hostId': hostId,
+    final code = _generateCode();
+    final ref = await _db.collection('games').add({
       'title': title,
       'description': description,
       'joinCode': code,
-      'password': password, // ✅ Store admin-only password
+      'password': password,
+      'ownerId': uid,
+      'isActive': false,
+      'isPublished': isPublished,  // app field
+      'published': isPublished,     // website field (must match)
+      'durationMinutes': durationMinutes,
       'createdAt': FieldValue.serverTimestamp(),
-      'isActive': false, // default inactive
+      'startedAt': null,
     });
-    return {'id': doc.id, 'code': code};
+    return {'id': ref.id, 'code': code};
   }
 
-  /// 🧬 Clone an existing game (with all its challenges)
-  Future<Map<String, String>> cloneGame(String oldCode, String newHostId) async {
-    // Find the old game by joinCode
-    final oldGameSnap = await _db
+  Future<Map<String, String>> cloneGame(String oldCode, String uid) async {
+    final query = await _db
         .collection('games')
         .where('joinCode', isEqualTo: oldCode)
         .limit(1)
         .get();
 
-    if (oldGameSnap.docs.isEmpty) {
-      throw Exception('No game found with that code');
-    }
+    if (query.docs.isEmpty) throw Exception('Game not found: $oldCode');
 
-    final oldGame = oldGameSnap.docs.first;
-    final oldGameId = oldGame.id;
+    final oldGame = query.docs.first;
     final oldData = oldGame.data();
+    final code = _generateCode();
 
-    // Create new game entry
-    final newCode = _generateJoinCode();
-    final newGameRef = await _db.collection('games').add({
-      'hostId': newHostId,
-      'title': oldData['title'] ?? 'Untitled Game',
+    final newRef = await _db.collection('games').add({
+      'title': oldData['title'],
       'description': oldData['description'] ?? '',
-      'joinCode': newCode,
-      'createdAt': FieldValue.serverTimestamp(),
+      'joinCode': code,
+      'password': oldData['password'] ?? '',
+      'ownerId': uid,
       'isActive': false,
-      'clonedFrom': oldCode,
-      'password': oldData['password'] ?? '', // ✅ carry over password if it exists
+      'isPublished': false,
+      'published': false,
+      'durationMinutes': oldData['durationMinutes'],
+      'createdAt': FieldValue.serverTimestamp(),
+      'startedAt': null,
     });
 
-    // Copy all challenges from old to new
+    // Copy challenges
     final challenges = await _db
         .collection('games')
-        .doc(oldGameId)
+        .doc(oldGame.id)
         .collection('challenges')
         .get();
 
-    for (var doc in challenges.docs) {
-      await newGameRef.collection('challenges').add(doc.data());
+    for (final doc in challenges.docs) {
+      await newRef.collection('challenges').add(doc.data());
     }
 
-    return {'id': newGameRef.id, 'code': newCode};
+    return {'id': newRef.id, 'code': code};
   }
+
+  Future<void> startGame(String gameId) async {
+    await _db.collection('games').doc(gameId).update({
+      'isActive': true,
+      'startedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> endGame(String gameId) async {
+    await _db.collection('games').doc(gameId).update({'isActive': false});
+  }
+
+  Future<void> setPublished(String gameId, bool published) async {
+    await _db.collection('games').doc(gameId).update({
+      'isPublished': published,  // app field
+      'published': published,    // website field
+    });
+  }
+
+  Future<void> deleteGame(String gameId) async {
+    // Delete all subcollections first
+    final batch = _db.batch();
+    final challenges = await _db.collection('games').doc(gameId).collection('challenges').get();
+    for (final d in challenges.docs) batch.delete(d.reference);
+    final players = await _db.collection('games').doc(gameId).collection('players').get();
+    for (final d in players.docs) batch.delete(d.reference);
+    final submissions = await _db.collection('games').doc(gameId).collection('submissions').get();
+    for (final d in submissions.docs) batch.delete(d.reference);
+    await batch.commit();
+    await _db.collection('games').doc(gameId).delete();
+  }
+
+  Stream<DocumentSnapshot> watchGame(String gameId) =>
+      _db.collection('games').doc(gameId).snapshots();
+
+  Stream<QuerySnapshot> watchPlayers(String gameId) =>
+      _db.collection('games').doc(gameId).collection('players').snapshots();
+
+  Stream<QuerySnapshot> watchSubmissions(String gameId) =>
+      _db.collection('games').doc(gameId).collection('submissions').snapshots();
+
+  Stream<QuerySnapshot> watchPublicGames() =>
+      _db.collection('games').where('published', isEqualTo: true).snapshots();
 }

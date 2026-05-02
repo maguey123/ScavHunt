@@ -1,11 +1,11 @@
 <lint-module
     format="1"
-    dir="C:\Users\root\Documents\Flutter\smart_scav\android\app"
+    dir="C:\Users\root\Documents\ScavHunt\android\app"
     name=":app"
     type="APP"
     maven="android:app:unspecified"
     agpVersion="8.9.1"
-    buildFolder="C:\Users\root\Documents\Flutter\smart_scav\build\app"
+    buildFolder="C:\Users\root\Documents\ScavHunt\build\app"
     bootClassPath="C:\Users\root\AppData\Local\Android\sdk\platforms\android-36\android.jar;C:\Users\root\AppData\Local\Android\sdk\build-tools\35.0.0\core-lambda-stubs.jar"
     javaSourceLevel="11"
     compileTarget="android-36">
