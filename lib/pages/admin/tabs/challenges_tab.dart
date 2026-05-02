@@ -297,6 +297,7 @@ class _ChallengesTabState extends State<ChallengesTab> {
               final timerMins = data['releaseAfterMinutes'];
 
               return GestureDetector(
+                onTap: () => _showActionSheet(docs[i].id, title, data),
                 onLongPress: () => _showActionSheet(docs[i].id, title, data),
                 child: Container(
                   padding: const EdgeInsets.all(14),

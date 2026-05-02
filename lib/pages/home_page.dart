@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'guide_page.dart';
 import 'manage_games_page.dart';
 import 'player/join_game_page.dart';
 
@@ -21,6 +22,20 @@ class HomePage extends StatelessWidget {
               const Text('ScavHunt', style: TextStyle(
                 color: ScavColors.textPrimary, fontSize: 18,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const GuidePage())),
+                child: Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(
+                    color: ScavColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ScavColors.border)),
+                  child: const Icon(Icons.info_outline,
+                    color: ScavColors.textMuted, size: 16),
+                ),
+              ),
             ]),
           )),
 
