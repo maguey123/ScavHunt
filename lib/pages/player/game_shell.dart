@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../theme/app_theme.dart';
 import '../../services/challenge_service.dart';
 import 'challenges_page.dart';
@@ -35,6 +36,11 @@ class _GameShellState extends State<GameShell> {
   void initState() {
     super.initState();
     _startPolling();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [Permission.camera, Permission.locationWhenInUse].request();
   }
 
   @override
@@ -295,6 +301,10 @@ class _GameShellState extends State<GameShell> {
     return AppBar(
       backgroundColor: ScavColors.bg,
       automaticallyImplyLeading: false,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: ScavColors.textMuted),
+        onPressed: () => Navigator.pop(context),
+      ),
       title: Row(children: [
         const ScavLogo(size: 28),
         const SizedBox(width: 10),

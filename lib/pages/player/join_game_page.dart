@@ -61,6 +61,19 @@ class _JoinGamePageState extends State<JoinGamePage> {
 
       final user        = await _auth.getOrCreateUser();
       final playerDocId = '${user.uid}_$name';
+
+      // Reject if another player already has this team name (case-insensitive)
+      final playersSnap = await _db
+          .collection('games').doc(gameId).collection('players').get();
+      final nameLower = name.toLowerCase();
+      final taken = playersSnap.docs.any((p) =>
+          p.id != playerDocId &&
+          (p.data()['teamName'] as String? ?? '').toLowerCase() == nameLower);
+      if (taken) {
+        setState(() { _error = 'That team name is already taken. Choose a different one.'; _loading = false; });
+        return;
+      }
+
       final playerRef   = _db.collection('games').doc(gameId).collection('players').doc(playerDocId);
       final existing    = await playerRef.get();
 

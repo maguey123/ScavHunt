@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>ScavHunt needs camera access to take photos for challenges.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ScavHunt needs photo library access to save your challenge photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ScavHunt needs your location to verify you're at the right spot for location challenges.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ScavHunt needs your location to verify you're at the right spot for location challenges.</string>
 </dict>
 </plist>
