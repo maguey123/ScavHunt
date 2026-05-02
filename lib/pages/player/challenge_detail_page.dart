@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,10 +29,10 @@ class ChallengeDetailPage extends StatefulWidget {
 }
 
 class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
-  final _auth     = AuthService();
-  final _db       = FirebaseFirestore.instance;
-  final _storage  = FirebaseStorage.instance;
-  final _picker   = ImagePicker();
+  final _auth    = AuthService();
+  final _db      = FirebaseFirestore.instance;
+  final _storage = FirebaseStorage.instance;
+  final _picker  = ImagePicker();
 
   File?   _image;
   String? _textResponse;
@@ -42,15 +43,65 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   String? _locationMsg;
   String? _resultMsg;
 
+  // Live game state
+  StreamSubscription<DocumentSnapshot>? _gameSub;
+  Timer? _tickTimer;
+  bool     _gameActive      = true;
+  DateTime? _gameStartedAt;
+  int?      _gameDuration;   // minutes
+
   @override
   void initState() {
     super.initState();
     _checkCompleted();
+    _watchGame();
+  }
+
+  @override
+  void dispose() {
+    _gameSub?.cancel();
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  void _watchGame() {
+    _gameSub = _db.collection('games').doc(widget.gameId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted || !snap.exists) return;
+      final d = snap.data() as Map<String, dynamic>;
+      final startedTs = d['startedAt'];
+      setState(() {
+        _gameActive    = d['isActive'] ?? true;
+        _gameStartedAt = startedTs is Timestamp ? startedTs.toDate() : null;
+        _gameDuration  = d['durationMinutes'] as int?;
+      });
+
+      // Start a 1-second tick so the timer expiry is caught in real time
+      if (_gameStartedAt != null && _gameDuration != null && _gameDuration! > 0) {
+        _tickTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() {});
+        });
+      }
+    });
+  }
+
+  bool get _timerExpired {
+    if (_gameStartedAt == null || _gameDuration == null || _gameDuration! <= 0) return false;
+    final end = _gameStartedAt!.add(Duration(minutes: _gameDuration!));
+    return DateTime.now().isAfter(end);
+  }
+
+  // Returns a human-readable reason submissions are blocked, or null if allowed.
+  String? get _blockedReason {
+    if (!_gameActive) return 'The host has ended this game.';
+    if (_timerExpired) return 'Time is up — submissions are now closed.';
+    return null;
   }
 
   Future<void> _checkCompleted() async {
-    final user = await _auth.getOrCreateUser();
-    final doc  = await _db
+    await _auth.getOrCreateUser();
+    final doc = await _db
         .collection('games').doc(widget.gameId)
         .collection('players').doc(widget.playerId)
         .collection('completed').doc(widget.challengeId).get();
@@ -65,7 +116,6 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   Future<void> _confirmLocation() async {
     setState(() { _checkingLocation = true; _locationMsg = null; });
     try {
-      // Check/request permission
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
@@ -108,14 +158,33 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
   Future<void> _submit() async {
     if (_completed) return;
+
+    // Re-check game state immediately before writing
+    final gameSnap = await _db.collection('games').doc(widget.gameId).get();
+    final gData    = gameSnap.data() ?? {};
+    final stillActive = gData['isActive'] ?? false;
+    final startedTs   = gData['startedAt'];
+    bool expired = false;
+    if (startedTs is Timestamp) {
+      final dur = gData['durationMinutes'] as int?;
+      if (dur != null && dur > 0) {
+        expired = DateTime.now().isAfter(startedTs.toDate().add(Duration(minutes: dur)));
+      }
+    }
+    if (!stillActive || expired) {
+      setState(() => _resultMsg = !stillActive
+          ? 'The game has ended — submission rejected.'
+          : 'Time is up — submission rejected.');
+      return;
+    }
+
     setState(() { _submitting = true; _resultMsg = null; });
 
     try {
-      final type         = widget.data['type'];
-      final playerId     = widget.playerId;
+      final type     = widget.data['type'];
+      final playerId = widget.playerId;
       String? imageUrl;
 
-      // Duplicate check
       final existing = await _db
           .collection('games').doc(widget.gameId).collection('submissions')
           .where('playerId', isEqualTo: playerId)
@@ -126,7 +195,6 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
         return;
       }
 
-      // Upload photo
       if ((type == 'photo' || type == 'location_photo') && _image != null) {
         final ref = _storage.ref().child(
             'games/${widget.gameId}/submissions/${playerId}_${widget.challengeId}.jpg');
@@ -134,7 +202,6 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
         imageUrl = await ref.getDownloadURL();
       }
 
-      // Save submission
       await _db.collection('games').doc(widget.gameId).collection('submissions').add({
         'playerId':       playerId,
         'challengeId':    widget.challengeId,
@@ -145,13 +212,11 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
         'submittedAt':    FieldValue.serverTimestamp(),
       });
 
-      // Mark completed
       await _db.collection('games').doc(widget.gameId)
           .collection('players').doc(playerId)
           .collection('completed').doc(widget.challengeId)
           .set({'completedAt': FieldValue.serverTimestamp()});
 
-      // Add points
       final pts = (widget.data['points'] ?? 0) as int;
       await _db.collection('games').doc(widget.gameId)
           .collection('players').doc(playerId)
@@ -163,7 +228,6 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
         _resultMsg  = '+$pts points earned! 🎉';
       });
 
-      // Auto-pop after short delay
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.pop(context);
 
@@ -175,11 +239,12 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
   bool get _canSubmit {
     if (_completed || _submitting) return false;
+    if (_blockedReason != null) return false;
     final type = widget.data['type'];
-    if (type == 'location') return _atLocation;
+    if (type == 'location')       return _atLocation;
     if (type == 'location_photo') return _atLocation && _image != null;
-    if (type == 'photo') return _image != null;
-    if (type == 'text') return (_textResponse?.trim().isNotEmpty ?? false);
+    if (type == 'photo')          return _image != null;
+    if (type == 'text')           return (_textResponse?.trim().isNotEmpty ?? false);
     return false;
   }
 
@@ -190,6 +255,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     final desc   = widget.data['description'] ?? '';
     final points = widget.data['points'] ?? 0;
     final extra  = widget.data['extraChallenge'];
+    final blocked = _blockedReason;
 
     return Scaffold(
       backgroundColor: ScavColors.bg,
@@ -202,6 +268,26 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ── Game closed banner ──────────────────────────────
+          if (blocked != null && !_completed) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: ScavColors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ScavColors.red.withValues(alpha: 0.35))),
+              child: Row(children: [
+                const Icon(Icons.lock_outline, color: ScavColors.red, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(blocked,
+                  style: const TextStyle(color: ScavColors.red, fontSize: 13,
+                    fontWeight: FontWeight.w600))),
+              ]),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // ── Challenge header card ───────────────────────────
           Container(
@@ -242,14 +328,15 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                       color: _atLocation ? ScavColors.green : ScavColors.accent),
               label: Text(
                 _checkingLocation ? 'Checking...' : _atLocation ? 'At location ✓' : 'Confirm Location',
-                style: TextStyle(
-                  color: _atLocation ? ScavColors.green : ScavColors.accent)),
+                style: TextStyle(color: _atLocation ? ScavColors.green : ScavColors.accent)),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: _atLocation
-                    ? ScavColors.green.withOpacity(0.5) : ScavColors.accent.withOpacity(0.4)),
+                    ? ScavColors.green.withValues(alpha: 0.5)
+                    : ScavColors.accent.withValues(alpha: 0.4)),
                 backgroundColor: _atLocation ? ScavColors.greenLo : ScavColors.accentLo,
                 padding: const EdgeInsets.symmetric(vertical: 14)),
-              onPressed: _completed || _checkingLocation || _atLocation ? null : _confirmLocation,
+              onPressed: _completed || _checkingLocation || _atLocation || blocked != null
+                  ? null : _confirmLocation,
             )),
             if (_locationMsg != null) ...[
               const SizedBox(height: 8),
@@ -266,7 +353,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
               width: double.infinity, padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: ScavColors.accentLo,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ScavColors.accent.withOpacity(0.3))),
+                border: Border.all(color: ScavColors.accent.withValues(alpha: 0.3))),
               child: Text(extra, style: const TextStyle(
                 color: ScavColors.textPrimary, fontSize: 15,
                 fontWeight: FontWeight.w600, height: 1.4)),
@@ -279,14 +366,14 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
             _stepLabel(type == 'location_photo' ? 'Step 2 — Take a photo' : 'Take a photo'),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: _completed ? null : _pickImage,
+              onTap: (_completed || blocked != null) ? null : _pickImage,
               child: Container(
                 width: double.infinity, height: 220,
                 decoration: BoxDecoration(
                   color: ScavColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: _image != null
-                      ? ScavColors.accent.withOpacity(0.5) : ScavColors.border)),
+                      ? ScavColors.accent.withValues(alpha: 0.5) : ScavColors.border)),
                 clipBehavior: Clip.antiAlias,
                 child: _image != null
                     ? Image.file(_image!, fit: BoxFit.cover)
@@ -306,7 +393,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                       ]),
               ),
             ),
-            if (_image != null && !_completed) ...[
+            if (_image != null && !_completed && blocked == null) ...[
               const SizedBox(height: 8),
               Center(child: TextButton.icon(
                 icon: const Icon(Icons.camera_alt_outlined, size: 16, color: ScavColors.textMuted),
@@ -322,7 +409,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
             _stepLabel('Your Answer'),
             const SizedBox(height: 8),
             TextField(
-              enabled: !_completed,
+              enabled: !_completed && blocked == null,
               maxLines: 5,
               onChanged: (v) => setState(() => _textResponse = v),
               style: const TextStyle(color: ScavColors.textPrimary),
@@ -356,8 +443,9 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 disabledForegroundColor: ScavColors.textMuted,
               ),
               child: Text(
-                _completed ? '✓  Challenge Completed'
-                    : _canSubmit ? 'Submit Challenge →'
+                _completed     ? '✓  Challenge Completed'
+                    : blocked != null ? '🔒  Submissions Closed'
+                    : _canSubmit     ? 'Submit Challenge →'
                     : _buildDisabledLabel(type),
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             )),

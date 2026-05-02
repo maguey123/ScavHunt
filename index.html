@@ -1,0 +1,3345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScavHunt — Game Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@700;800;900&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBuaTZHhbcFokjEhIKTh3YJwJUg6_O2ejs&libraries=places" defer></script>
+<style>
+:root {
+  --bg: #0c0c0c;
+  --surface: #141414;
+  --surface2: #1c1c1c;
+  --surface3: #242424;
+  --ink: #f5f5f0;
+  --ink2: #a0a09a;
+  --ink3: #505050;
+  --fire: #e8380a;
+  --fire2: #ff5c1a;
+  --go: #1db954;
+  --stop: #e8380a;
+  --border: #2a2a2a;
+  --border2: #383838;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── PAGE SYSTEM ─── */
+.page { display: none; min-height: 100vh; position: relative; z-index: 1; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ══════════════════════════════════════
+   LANDING PAGE
+══════════════════════════════════════ */
+#pageLanding {
+  padding: 0;
+  overflow: hidden;
+}
+
+.landing-split {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  min-height: 100vh;
+}
+
+.landing-left {
+  padding: 64px 56px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+
+.landing-right {
+  background: var(--surface2);
+  border-left: 1px solid var(--border);
+  padding: 48px 36px;
+  display: flex; flex-direction: column; gap: 12px;
+  justify-content: center;
+}
+
+.landing-brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-bottom: 32px;
+}
+
+.brand-glyph {
+  width: 34px; height: 34px;
+  background: var(--fire);
+  display: grid; place-items: center;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800; font-size: 18px; color: white;
+  flex-shrink: 0;
+}
+.brand-glyph.sm { width: 26px; height: 26px; font-size: 13px; }
+
+.brand-name {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800; font-size: 16px; letter-spacing: -0.3px;
+}
+
+.landing-title {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: clamp(40px, 5vw, 58px);
+  line-height: 1;
+  letter-spacing: -2px;
+  margin-bottom: 16px;
+  color: var(--ink);
+}
+
+.landing-accent { color: var(--fire); }
+
+.landing-sub {
+  color: var(--ink2); font-size: 15px; line-height: 1.65;
+  max-width: 380px; margin-bottom: 36px;
+}
+
+.landing-ctas {
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 320px;
+}
+
+.landing-cta-primary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--fire); color: white;
+  border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+  transition: background 0.12s;
+}
+.landing-cta-primary:hover { background: var(--fire2); }
+
+.landing-cta-secondary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--border2); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+  transition: background 0.12s;
+}
+.landing-cta-secondary:hover { background: var(--surface2); }
+
+.landing-cta-link {
+  background: none; border: none;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--ink3); cursor: pointer; letter-spacing: 0.5px;
+  text-align: left; padding: 4px 0;
+  transition: color 0.12s;
+}
+.landing-cta-link:hover { color: var(--ink); }
+
+.cta-arrow { font-size: 16px; }
+
+.landing-live-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: 8px;
+}
+
+.landing-live-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: border-color 0.12s;
+}
+.landing-live-card:hover { border-color: var(--border2); }
+
+.green-pip { width: 7px; height: 7px; background: var(--go); animation: livePulse 1.6s ease infinite; flex-shrink: 0; }
+.amber-pip { width: 7px; height: 7px; background: #f59e0b; flex-shrink: 0; }
+
+.landing-live-meta { flex: 1; min-width: 0; }
+.landing-live-title { font-size: 13px; font-weight: 600; }
+.landing-live-detail { font-size: 11px; color: var(--ink3); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+.landing-live-stat {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px; color: var(--fire); font-weight: 500;
+  flex-shrink: 0;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════
+   AUTH PAGES
+══════════════════════════════════════ */
+.auth-page {
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 40px;
+  width: 100%;
+  max-width: 460px;
+  animation: fadeUp 0.3s ease both;
+}
+
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ink3); font-size: 12px;
+  cursor: pointer; border: none; background: none;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 32px;
+  padding: 0;
+  letter-spacing: 0.5px;
+  transition: color 0.12s;
+}
+.back-btn:hover { color: var(--ink); }
+
+.auth-icon {
+  font-size: 28px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.auth-title {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+}
+
+.auth-sub { color: var(--ink2); font-size: 14px; margin-bottom: 32px; }
+
+/* ─── FORM ─── */
+.form-group { margin-bottom: 16px; }
+
+.form-label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ink3);
+  margin-bottom: 7px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 11px 14px;
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.12s;
+  appearance: none;
+  border-radius: 0;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--fire);
+}
+
+.form-input.code-input {
+  font-family: 'DM Mono', monospace;
+  font-size: 22px;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.form-select option { background: var(--surface2); }
+.form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-hint { font-size: 11px; color: var(--ink3); margin-top: 5px; font-family: 'DM Mono', monospace; }
+
+.btn-submit {
+  width: 100%;
+  padding: 13px;
+  background: var(--fire);
+  color: #fff;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.12s;
+  letter-spacing: 0.2px;
+}
+.btn-submit:hover:not(:disabled) { background: var(--fire2); }
+.btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.error-msg {
+  border-left: 3px solid var(--stop);
+  background: rgba(232,56,10,0.06);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #f87171;
+  margin-bottom: 16px;
+  display: none;
+}
+
+/* ══════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════ */
+#pageDashboard { flex-direction: column; }
+
+.dash-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex; align-items: center; gap: 20px;
+  position: sticky; top: 0; z-index: 50;
+  flex-shrink: 0;
+}
+
+.dash-header-left { display: flex; align-items: center; gap: 12px; }
+.dash-crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dash-crumb-root { color: var(--ink3); }
+.dash-crumb-sep { color: var(--ink3); }
+.dash-crumb-cur { color: var(--ink); font-weight: 600; }
+.dash-header-right { display: flex; align-items: center; gap: 10px; }
+
+.code-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border: 1px dashed var(--border2);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.code-chip:hover { border-color: var(--fire); }
+.code-chip-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink3);
+}
+.code-chip-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px; letter-spacing: 3px; color: var(--ink);
+  font-weight: 500; line-height: 1;
+}
+.code-chip-copy {
+  width: 24px; height: 24px;
+  background: var(--surface2); border: none;
+  color: var(--ink3); cursor: pointer;
+  display: grid; place-items: center;
+  transition: color 0.12s;
+}
+.code-chip-copy:hover { color: var(--ink); }
+
+.dash-logo {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+  color: var(--fire);
+}
+
+.dash-game-name {
+  font-size: 13px; font-weight: 500;
+  color: var(--ink3);
+  border-left: 1px solid var(--border);
+  padding-left: 20px;
+}
+
+.dash-header .spacer { flex: 1; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+}
+.status-pill.live { color: var(--go); border-color: #1db95440; }
+.status-pill.inactive { color: var(--ink3); }
+.live-dot {
+  width: 6px; height: 6px;
+  background: var(--go);
+  animation: livePulse 1.6s ease infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.dash-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ─── SIDEBAR ─── */
+.dash-sidebar {
+  width: 200px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink3); padding: 14px 12px 6px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  color: var(--ink3);
+  border: none; background: transparent;
+  font-family: 'Inter', sans-serif;
+  transition: color 0.12s, background 0.12s;
+  width: 100%;
+  text-align: left;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { color: var(--ink); background: var(--surface2); }
+.nav-item.active { color: var(--ink); border-left-color: var(--fire); background: var(--surface2); }
+.nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--surface3);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px;
+  color: var(--ink3);
+}
+.nav-badge.alert { background: var(--fire); color: white; }
+
+.nav-icon { width: 15px; height: 15px; flex-shrink: 0; }
+
+.sidebar-spacer { flex: 1; }
+
+.btn-exit {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer; font-size: 12px;
+  color: var(--ink3); background: none; border: none;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+  transition: color 0.12s; width: 100%;
+}
+.btn-exit:hover { color: var(--stop); }
+
+/* ─── MAIN PANEL ─── */
+.dash-main { flex: 1; overflow-y: auto; padding: 28px; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeUp 0.2s ease both; }
+
+/* ─── SECTION HEADER ─── */
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 24px; letter-spacing: -0.5px;
+}
+
+/* ─── STATUS BAR ─── */
+.status-bar {
+  border: 1px solid var(--border);
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 20px;
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+.status-bar.live { border-color: rgba(29,185,84,0.3); background: rgba(29,185,84,0.03); }
+.status-bar-heading { font-family: 'Figtree', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.3px; }
+.status-bar-sub { font-size: 12px; color: var(--ink3); margin-top: 4px; font-family: 'DM Mono', monospace; }
+.status-bar-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ─── STATS ─── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 1px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.stat-box {
+  background: var(--surface);
+  padding: 18px 16px;
+}
+.stat-box-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ink3); margin-bottom: 6px;
+}
+.stat-box-val {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 36px; line-height: 1; letter-spacing: -1px;
+}
+.stat-box-val.accent { color: var(--fire); }
+.stat-box-val.green { color: var(--go); }
+
+.stat-box-delta {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--ink3);
+  margin-top: 4px; letter-spacing: 0.3px;
+}
+.stat-box-delta.alert { color: var(--fire); }
+
+.code-display-box {
+  border: 1px solid var(--border);
+  padding: 18px 22px;
+  display: flex; align-items: center; gap: 20px;
+  margin-bottom: 24px; flex-wrap: wrap;
+  background: var(--surface);
+}
+.code-display-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink3);
+}
+.code-display-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 44px; letter-spacing: 8px; line-height: 1;
+  color: var(--fire); cursor: pointer; font-weight: 500;
+}
+.code-display-val:hover { opacity: 0.7; }
+.code-copy-hint { font-size: 12px; color: var(--ink3); font-family: 'DM Mono', monospace; }
+
+.game-toggle-area { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ─── BUTTONS ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: background 0.12s, color 0.12s; white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+.btn-primary { background: var(--fire); color: #fff; }
+.btn-primary:hover { background: var(--fire2); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--surface2); }
+.btn-red { background: transparent; color: var(--stop); border: 1px solid #e8380a40; }
+.btn-red:hover { background: rgba(232,56,10,0.1); }
+.btn-green { background: transparent; color: var(--go); border: 1px solid #1db95440; }
+.btn-green:hover { background: rgba(29,185,84,0.1); }
+.btn-sm { padding: 5px 11px; font-size: 11px; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ─── CHALLENGE CARDS ─── */
+.challenge-list { display: grid; gap: 0; }
+
+/* Section group headers: LIVE NOW, SCHEDULED, HIDDEN */
+.ch-group-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 2px 8px;
+}
+.ch-group-head:first-child { padding-top: 0; }
+.ch-group-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ink3);
+}
+.ch-group-count {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--ink3); background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 1px 7px; border-radius: 99px;
+}
+.ch-group-line { flex: 1; height: 1px; background: var(--border); }
+
+.ch-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 8px;
+  transition: border-color 0.12s;
+}
+.ch-card:hover { border-color: var(--border2); }
+.ch-card.ch-hidden { opacity: 0.6; }
+
+/* Icon box — coloured by type */
+.ch-icon-box {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center; flex-shrink: 0;
+  font-size: 17px;
+}
+.ch-icon-box.type-photo { background: rgba(59,130,246,0.12); color: #93c5fd; }
+.ch-icon-box.type-text { background: rgba(245,158,11,0.12); color: #fbbf24; }
+.ch-icon-box.type-location { background: rgba(29,185,84,0.12); color: #86efac; }
+.ch-icon-box.type-location_photo { background: rgba(168,85,247,0.12); color: #d8b4fe; }
+
+.ch-body { flex: 1; min-width: 0; }
+.ch-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+.ch-title { font-weight: 600; font-size: 14px; }
+
+/* Status badge on card */
+.ch-badge {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+  border: 1px solid; white-space: nowrap;
+}
+.ch-badge.live { background: rgba(29,185,84,0.1); color: #86efac; border-color: rgba(29,185,84,0.25); }
+.ch-badge.hidden { background: var(--surface2); color: var(--ink3); border-color: var(--border); }
+.ch-badge.timer { background: rgba(245,158,11,0.1); color: #fbbf24; border-color: rgba(245,158,11,0.25); }
+
+.ch-desc { color: var(--ink2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-meta-row {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--ink3); margin-top: 5px; letter-spacing: 0.3px;
+  text-transform: uppercase;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+
+.ch-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ch-pts-block { display: flex; align-items: baseline; gap: 2px; }
+.ch-pts {
+  font-family: 'Figtree', sans-serif; font-weight: 800;
+  font-size: 22px; color: var(--ink); line-height: 1;
+}
+.ch-pts-unit { font-size: 11px; color: var(--ink3); font-weight: 500; }
+
+.ch-actions { display: flex; gap: 4px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.12s; }
+.ch-card:hover .ch-actions { opacity: 1; }
+
+/* Keep old tag classes for the modal (not used on cards anymore) */
+.tag {
+  padding: 1px 7px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500; letter-spacing: 0.5px;
+  text-transform: uppercase; border: 1px solid;
+}
+.tag-photo { border-color: #6366f140; color: #818cf8; }
+.tag-text { border-color: #ca8a0440; color: #fbbf24; }
+.tag-location { border-color: #16a34a40; color: #4ade80; }
+.tag-location_photo { border-color: #9333ea40; color: #c084fc; }
+.tag-released { border-color: #16a34a40; color: #4ade80; }
+.tag-hidden { border-color: var(--border); color: var(--ink3); }
+
+/* ─── LEADERBOARD ─── */
+.lb-list { display: grid; gap: 12px; }
+
+/* Podium */
+.podium {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.podium-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 14px;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+.podium-card.gold { border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.05); }
+.podium-card.silver { border-color: rgba(148,163,184,0.2); }
+.podium-card.bronze { border-color: rgba(180,83,9,0.2); }
+.podium-medal {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: 'Figtree', sans-serif; font-size: 13px; font-weight: 800;
+  margin: 0 auto 12px;
+}
+.podium-medal.gold { background: #f59e0b; color: #000; }
+.podium-medal.silver { background: #cbd5e1; color: #000; }
+.podium-medal.bronze { background: #b45309; color: #fff; }
+.podium-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.podium-pts {
+  font-family: 'Figtree', sans-serif; font-weight: 800;
+  font-size: 28px; color: var(--ink); line-height: 1; margin-bottom: 4px;
+}
+.podium-card.gold .podium-pts { color: var(--fire); font-size: 34px; }
+.podium-meta {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--ink3); margin-top: 6px; letter-spacing: 0.3px;
+}
+
+/* 4th place+ rows */
+.lb-row-new {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 32px 32px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  transition: border-color 0.12s;
+}
+.lb-row-new:hover { border-color: var(--border2); }
+.lb-row-rank {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink3); text-align: center;
+}
+.lb-row-av {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
+.lb-row-name-main { font-size: 13px; font-weight: 600; }
+.lb-row-name-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink3); margin-top: 2px; }
+.lb-bar-cell { display: flex; align-items: center; gap: 10px; }
+.lb-bar { width: 80px; height: 3px; border-radius: 99px; background: var(--surface3); overflow: hidden; flex-shrink: 0; }
+.lb-bar-fill { height: 100%; background: var(--fire); border-radius: 99px; }
+.lb-pts-block { display: flex; align-items: baseline; gap: 3px; }
+.lb-pts-mono {
+  font-family: 'Figtree', sans-serif; font-weight: 800;
+  font-size: 18px; color: var(--ink); line-height: 1;
+}
+.lb-pts-unit { font-size: 11px; color: var(--ink3); font-weight: 500; }
+
+/* ─── SUBMISSIONS ─── */
+/* Single flat list — most recent first */
+.sub-list-inner { display: grid; gap: 10px; }
+
+.sub-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  transition: border-color 0.12s;
+}
+.sub-card:hover { border-color: var(--border2); }
+.sub-card.revoked { opacity: 0.5; }
+
+.sub-img-wrap {
+  width: 90px; height: 90px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  background: var(--surface2);
+  display: grid; place-items: center;
+  color: var(--ink3); font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.5px; text-align: center;
+}
+.sub-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  cursor: pointer; transition: opacity 0.12s;
+  display: block;
+}
+.sub-img:hover { opacity: 0.8; }
+
+.sub-body { min-width: 0; }
+.sub-team-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.sub-team-av {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 10px; font-weight: 700; color: white; flex-shrink: 0;
+}
+.sub-team-name { font-size: 12px; color: var(--ink3); font-weight: 500; }
+.sub-team-time { font-size: 11px; color: var(--ink3); margin-left: auto; font-family: 'DM Mono', monospace; }
+.sub-challenge { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.sub-meta-row {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--ink3); letter-spacing: 0.3px; text-transform: uppercase;
+  margin-top: 4px;
+}
+.sub-answer {
+  background: var(--surface2);
+  border-left: 2px solid var(--fire);
+  border-radius: 0 4px 4px 0;
+  padding: 6px 10px; font-size: 12px; margin-top: 8px;
+  line-height: 1.5; color: var(--ink2);
+  font-style: italic;
+}
+
+.sub-actions-col {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 8px; flex-shrink: 0;
+}
+.sub-pts-badge {
+  font-family: 'Figtree', sans-serif; font-weight: 800;
+  font-size: 20px; color: var(--ink); line-height: 1;
+  white-space: nowrap;
+}
+.sub-pts-badge .sub-pts-unit { font-size: 12px; color: var(--ink3); font-weight: 500; margin-left: 2px; }
+.sub-pts-badge.revoked-pts { text-decoration: line-through; color: var(--ink3); font-size: 14px; }
+
+.sub-btn-row { display: flex; gap: 6px; }
+.sub-action-btn {
+  width: 32px; height: 32px; border-radius: 7px;
+  display: grid; place-items: center;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--ink3);
+  font-size: 14px; transition: all 0.12s;
+}
+.sub-action-btn:hover { background: var(--surface3); color: var(--ink); }
+.sub-action-btn.revoke-btn:hover { background: rgba(232,56,10,0.1); color: var(--stop); border-color: rgba(232,56,10,0.3); }
+.sub-action-btn.restore-btn { color: var(--go); border-color: rgba(29,185,84,0.3); background: rgba(29,185,84,0.08); }
+.sub-action-btn.restore-btn:hover { background: rgba(29,185,84,0.15); }
+
+/* ─── MODAL ─── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 200;
+  display: none; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 28px;
+  width: 100%; max-width: 500px;
+  max-height: 90vh; overflow-y: auto;
+  animation: fadeUp 0.15s ease both;
+  transition: max-width 0.2s ease;
+}
+.modal.wide { max-width: 720px; }
+
+.modal h3 {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 22px; letter-spacing: -0.5px;
+  margin-bottom: 20px;
+}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ─── MAP PICKER ─── */
+#mapPicker {
+  width: 100%; height: 300px;
+  overflow: hidden;
+  border: 1px solid var(--border2);
+  margin-bottom: 12px;
+  transition: border-color 0.15s;
+}
+#mapPicker.has-pin { border-color: var(--fire); }
+
+.map-search-wrap { position: relative; margin-bottom: 8px; }
+#mapSearch {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+#mapSearch:focus { border-color: var(--fire); }
+
+.pin-result {
+  display: flex; align-items: center; gap: 10px;
+  border-left: 3px solid var(--fire);
+  background: rgba(232,56,10,0.05);
+  padding: 8px 12px;
+  font-size: 13px; color: var(--ink);
+  margin-bottom: 8px;
+}
+.pin-result .pin-coords { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--fire); }
+.pin-result .pin-clear { margin-left: auto; cursor: pointer; color: var(--ink3); font-size: 16px; }
+.pin-result .pin-clear:hover { color: var(--stop); }
+
+/* ─── TOAST ─── */
+.toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 6px; }
+.toast {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  padding: 10px 16px;
+  font-size: 13px;
+  animation: toastIn 0.15s ease both;
+  max-width: 280px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.3px;
+}
+.toast.ok  { border-left: 3px solid var(--go); }
+.toast.err { border-left: 3px solid var(--stop); }
+@keyframes toastIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* ─── UTIL ─── */
+.spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--fire);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 48px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty { text-align: center; padding: 48px; color: var(--ink3); }
+.empty .e-icon { font-size: 36px; margin-bottom: 12px; }
+.empty p { font-size: 13px; font-family: 'DM Mono', monospace; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ─── TEAM PROGRESS ─── */
+.team-progress-list { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 4px; }
+
+.tp-row { background: var(--surface); padding: 14px 16px; }
+.tp-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.tp-name { flex: 1; font-weight: 500; font-size: 13px; }
+.tp-count { font-family: 'DM Mono', monospace; font-size: 16px; color: var(--fire); }
+.tp-fraction { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink3); margin-top: 1px; }
+
+.progress-track {
+  width: 100%; height: 3px;
+  background: var(--surface3);
+  overflow: hidden;
+}
+.progress-fill { height: 100%; background: var(--fire); transition: width 0.4s ease; }
+.progress-fill.complete { background: var(--go); }
+
+.auto-refresh-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--ink3);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  letter-spacing: 0.5px;
+}
+.refresh-dot {
+  width: 5px; height: 5px;
+  background: var(--go);
+  animation: livePulse 2s ease infinite;
+}
+
+/* ─── TOGGLE SWITCH ─── */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.toggle-row:hover { border-color: var(--border2); }
+.toggle-row-label { font-size: 13px; font-weight: 500; }
+.toggle-row-sub { font-size: 11px; color: var(--ink3); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+.toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--surface3);
+  transition: background 0.2s;
+  border: 1px solid var(--border);
+}
+.toggle-track::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--ink3);
+  transition: all 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: rgba(29,185,84,0.15); border-color: #1db95450; }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); background: var(--go); }
+
+/* ─── BROWSE GAMES ─── */
+.browse-page { padding: 40px 24px; max-width: 960px; margin: 0 auto; width: 100%; }
+.browse-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.browse-header h2 {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 32px; letter-spacing: -0.5px; flex: 1;
+}
+
+.radius-slider-wrap { display: grid; gap: 8px; }
+.radius-label { display: flex; justify-content: space-between; align-items: center; }
+.radius-label span { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink3); letter-spacing: 0.5px; }
+.radius-label strong { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--fire); }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px;
+  background: var(--surface3); outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px;
+  background: var(--fire); cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--fire); cursor: pointer; border: none;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.game-card {
+  background: var(--surface);
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.1s;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.game-card:hover { background: var(--surface2); }
+
+.game-card-title {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 18px; letter-spacing: -0.3px; line-height: 1.15;
+}
+
+.game-card-desc { color: var(--ink2); font-size: 12px; line-height: 1.5; flex: 1; }
+
+.game-card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+.game-card-stat {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--ink3);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  letter-spacing: 0.3px;
+}
+
+.game-card-live {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--go);
+  border: 1px solid #1db95440;
+  padding: 2px 8px;
+}
+
+/* ─── GAME PREVIEW ─── */
+.preview-page { padding: 40px 24px; max-width: 700px; margin: 0 auto; width: 100%; }
+.preview-hero { margin-bottom: 28px; }
+.preview-title {
+  font-family: 'Figtree', sans-serif;
+  font-weight: 800;
+  font-size: 38px; letter-spacing: -1px; line-height: 1;
+  margin-bottom: 10px;
+}
+.preview-desc { color: var(--ink2); font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+.preview-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+
+.preview-challenge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.preview-ch-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink3);
+  width: 20px; flex-shrink: 0; padding-top: 2px;
+}
+.preview-ch-body { flex: 1; }
+.preview-ch-title { font-weight: 600; font-size: 14px; }
+.preview-ch-desc { color: var(--ink2); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+.preview-ch-pts { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--fire); flex-shrink: 0; }
+
+.play-bar {
+  position: sticky; bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border2);
+  padding: 14px 22px;
+  display: flex; align-items: center; gap: 12px;
+  margin: 28px -24px -40px;
+  flex-wrap: wrap;
+}
+
+/* ─── SCHEDULE SECTION ─── */
+#scheduleDelayRow .form-hint { border-left: 2px solid var(--fire); background: rgba(232,56,10,0.04); padding: 8px 10px; font-family: 'DM Mono', monospace; font-size: 11px; }
+
+/* ─── MOBILE BOTTOM NAV ─── */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  height: 64px;
+}
+.mobile-nav-inner { display: flex; height: 100%; }
+.mobile-nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  border: none; background: transparent;
+  color: var(--ink3);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500; letter-spacing: 0.5px;
+  cursor: pointer; transition: color 0.12s; padding: 8px 4px;
+  border-top: 2px solid transparent;
+}
+.mobile-nav-btn .mob-icon { font-size: 18px; line-height: 1; }
+.mobile-nav-btn.active { color: var(--fire); border-top-color: var(--fire); }
+.mobile-nav-btn.exit-btn { color: var(--ink3); }
+
+/* ─── MORE MENU ─── */
+#moreMenuDropdown button:hover { background: var(--surface3) !important; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .dash-sidebar { display: none; }
+  .form-row { grid-template-columns: 1fr; }
+  .dash-main { padding: 16px 16px 80px; }
+  .auth-card { padding: 24px 18px; }
+  .hero-buttons { flex-direction: column; align-items: center; }
+  .teams-columns { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .dash-header { padding: 0 16px; }
+  .dash-header .dash-game-name { display: none; }
+  .section-title { font-size: 20px; }
+  .game-toggle-area .btn { font-size: 11px; padding: 6px 10px; }
+  .code-display-val { font-size: 34px; letter-spacing: 5px; }
+  .modal { padding: 18px 14px; }
+  .modal.wide { max-width: 100%; }
+  #mapPicker { height: 220px; }
+  .browse-page { padding: 20px 14px; }
+  .preview-page { padding: 20px 14px; }
+  .preview-title { font-size: 28px; }
+  .play-bar { flex-direction: column; align-items: stretch; padding: 12px 14px; }
+  .play-bar input { max-width: 100% !important; }
+  .mobile-nav { display: block; }
+  .games-grid { grid-template-columns: 1fr; }
+  .landing-split { grid-template-columns: 1fr; }
+  .landing-right { display: none; }
+  .landing-left { padding: 48px 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     LANDING PAGE
+══════════════════════════════════════ -->
+<div id="pageLanding" class="page active">
+  <div class="landing-split">
+    <div class="landing-left">
+      <div class="landing-brand">
+        <div class="brand-glyph">S</div>
+        <span class="brand-name">ScavHunt</span>
+      </div>
+      <h1 class="landing-title">Run a hunt.<br>Watch teams <span class="landing-accent">go.</span></h1>
+      <p class="landing-sub">Set challenges, share a 5-letter join code, and review submissions in real time.</p>
+      <div class="landing-ctas">
+        <button class="landing-cta-primary" onclick="showPage('pageCreate')">
+          <span>Create a new game</span><span class="cta-arrow">→</span>
+        </button>
+        <button class="landing-cta-secondary" onclick="showPage('pageManage')">
+          <span>I have a game code</span><span class="cta-arrow">→</span>
+        </button>
+        <button class="landing-cta-link" onclick="showBrowse()">Browse public games ↗</button>
+      </div>
+    </div>
+    <div class="landing-right">
+      <div class="landing-live-label">Live right now</div>
+      <div id="landingLiveGames">
+        <div class="landing-live-card">
+          <div class="live-pip green-pip"></div>
+          <div class="landing-live-meta">
+            <div class="landing-live-title">Loading games...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MANAGE GAME (Login)
+══════════════════════════════════════ -->
+<div id="pageManage" class="page auth-page">
+  <div class="auth-card">
+    <button class="back-btn" onclick="showPage('pageLanding')">← Back</button>
+    <div class="auth-icon">🔑</div>
+    <h2 class="auth-title">Manage Game</h2>
+    <p class="auth-sub">Enter your game code and admin password to continue.</p>
+    <div id="manageError" class="error-msg"></div>
+    <div class="form-group">
+      <label class="form-label">Game Code</label>
+      <input type="text" class="form-input code-input" id="manageCode" placeholder="XXXXX" maxlength="5">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Admin Password</label>
+      <input type="password" class="form-input" id="managePassword" placeholder="Your admin password">
+    </div>
+    <button class="btn-submit" id="btnManageEnter" onclick="enterGame()">Enter Dashboard →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     CREATE GAME
+══════════════════════════════════════ -->
+<div id="pageCreate" class="page auth-page">
+  <div class="auth-card">
+    <button class="back-btn" onclick="showPage('pageLanding')">← Back</button>
+    <div class="auth-icon">✨</div>
+    <h2 class="auth-title">New Game</h2>
+    <p class="auth-sub">Set up a new scavenger hunt. A join code will be generated automatically.</p>
+    <div id="createError" class="error-msg"></div>
+    <div class="form-group">
+      <label class="form-label">Game Title *</label>
+      <input type="text" class="form-input" id="createTitle" placeholder="e.g. Sydney CBD Hunt">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="createDesc" placeholder="Brief description of the game..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Admin Password *</label>
+      <input type="text" class="form-input" id="createPassword" placeholder="You'll need this to access the game later">
+      <div class="form-hint">Save this — you'll need it to manage the game</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Max Game Duration <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink3)">— game ends automatically</span></label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" class="form-input" id="createDurationHours" value="1" min="0" max="23" style="max-width:72px;text-align:center" oninput="updateDurationPreview()">
+          <span style="font-size:13px;color:var(--ink3);white-space:nowrap">hr</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" class="form-input" id="createDurationMins" value="0" min="0" max="59" style="max-width:72px;text-align:center" oninput="updateDurationPreview()">
+          <span style="font-size:13px;color:var(--ink3);white-space:nowrap">min</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:4px">
+          <input type="checkbox" id="createDurationEnabled" onchange="toggleDurationInputs()">
+          <span style="font-size:12px;color:var(--ink3)">Enable</span>
+        </label>
+      </div>
+      <div id="durationPreview" class="form-hint" style="margin-top:8px;display:none"></div>
+    </div>
+    <div class="form-group">
+      <label class="toggle-row" for="createPublish">
+        <div>
+          <div class="toggle-row-label">🌍 Publish to Browse Games</div>
+          <div class="toggle-row-sub">Others can discover and preview this game</div>
+        </div>
+        <div class="toggle-switch">
+          <input type="checkbox" id="createPublish">
+          <div class="toggle-track"></div>
+        </div>
+      </label>
+    </div>
+    <button class="btn-submit" id="btnCreate" onclick="createGame()">Create Game →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     BROWSE GAMES
+══════════════════════════════════════ -->
+<div id="pageBrowse" class="page" style="justify-content:flex-start">
+  <div class="browse-page">
+    <div class="browse-header">
+      <button class="back-btn" onclick="showPage('pageLanding')" style="margin-bottom:0">← Back</button>
+      <h2>Browse Games</h2>
+      <button class="btn btn-ghost btn-sm" onclick="loadBrowse()">↻ Refresh</button>
+    </div>
+
+    <div style="position:relative;margin-bottom:14px">
+      <input type="text" id="browseSearch" class="form-input"
+        placeholder="🔍 Search by title or description..."
+        oninput="filterBrowse(this.value)"
+        style="font-size:15px">
+      <button id="browseSearchClear" onclick="clearBrowseSearch()"
+        style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink3);font-size:18px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);margin-bottom:20px;overflow:hidden">
+      <button onclick="toggleLocSearch()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;color:var(--ink)">
+        <span>📍 Search by Location</span>
+        <span id="locSearchArrow" style="color:var(--ink3);font-size:12px;transition:transform 0.2s">▼</span>
+      </button>
+      <div id="locSearchBody" style="display:none;border-top:1px solid var(--border);padding:16px">
+        <div style="position:relative;margin-bottom:12px">
+          <input type="text" id="locSearchInput" class="form-input"
+            placeholder="e.g. Newcastle, Sydney CBD..."
+            style="padding-right:90px"
+            onkeydown="if(event.key==='Enter') searchByLocation()">
+          <button class="btn btn-primary btn-sm" onclick="searchByLocation()"
+            style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">Search</button>
+        </div>
+        <div class="radius-slider-wrap">
+          <div class="radius-label">
+            <span>Radius</span>
+            <strong id="radiusLabel">10 km</strong>
+          </div>
+          <input type="range" id="locRadius" min="1" max="100" value="10" oninput="updateRadiusLabel(this.value)">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)">
+            <span>1 km</span><span>50 km</span><span>100 km</span>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">Click anywhere on the map to set your search point — pins show all published location challenges</div>
+          <div id="locPickerMap" style="width:100%;height:260px;border:1px solid var(--border);overflow:hidden"></div>
+          <div id="locMapLegend" style="display:none;flex-wrap:wrap;gap:8px;margin-top:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border)"></div>
+          <div id="locPickerStatus" style="font-size:12px;color:var(--ink3);margin-top:6px"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="clearLocSearch()">✕ Clear</button>
+        </div>
+        <div id="locGamesList" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+          <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);margin-bottom:10px" id="locGamesLabel"></div>
+          <div id="locGamesGrid" style="display:grid;gap:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="browseCount" style="font-size:13px;color:var(--ink3);margin-bottom:16px;display:none"></div>
+    <div id="browseLoading" style="display:none;text-align:center;padding:48px"><div class="spinner" style="margin:0 auto"></div></div>
+    <div id="browseGrid"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     GAME PREVIEW
+══════════════════════════════════════ -->
+<div id="pagePreview" class="page" style="justify-content:flex-start">
+  <div class="preview-page">
+    <button class="back-btn" onclick="showPage('pageBrowse')" style="margin-bottom:24px">← Back to Browse</button>
+    <div class="preview-hero">
+      <div class="preview-title" id="previewTitle"></div>
+      <div class="preview-desc" id="previewDesc"></div>
+      <div class="preview-meta" id="previewMeta"></div>
+    </div>
+    <div style="font-weight:600;font-size:15px;margin-bottom:14px">Challenges</div>
+    <div id="previewChallenges" style="display:grid;gap:10px"></div>
+    <div class="play-bar">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">Host this game</div>
+        <div style="font-size:12px;color:var(--ink3)">Creates a fresh copy for you to run — not published</div>
+      </div>
+      <input type="text" class="form-input" id="clonePassword" placeholder="Set an admin password" style="max-width:200px">
+      <button class="btn btn-primary" id="btnCloneGame" onclick="cloneGame()">🚀 Host this Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     DASHBOARD
+══════════════════════════════════════ -->
+<div id="pageDashboard" class="page">
+  <div class="dash-header">
+    <div class="dash-header-left">
+      <div class="brand-glyph sm">S</div>
+      <div class="dash-crumb">
+        <span class="dash-crumb-root">Games</span>
+        <span class="dash-crumb-sep">/</span>
+        <span class="dash-crumb-cur" id="headerGameName">—</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="dash-header-right">
+      <div class="code-chip" onclick="copyCode()" title="Click to copy">
+        <div>
+          <div class="code-chip-label">Join</div>
+          <div class="code-chip-val" id="displayCode">—</div>
+        </div>
+        <button class="code-chip-copy" title="Copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+      <div id="headerStatus" class="status-pill inactive">● Inactive</div>
+      <div class="dash-more-menu" style="position:relative">
+        <button class="btn btn-ghost btn-sm" onclick="toggleMoreMenu()" id="btnMoreMenu" style="font-size:16px;padding:5px 10px">⋯</button>
+        <div id="moreMenuDropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--surface2);border:1px solid var(--border2);min-width:180px;z-index:100">
+          <button onclick="togglePublish();closeMoreMenu()" style="display:block;width:100%;padding:10px 16px;text-align:left;background:none;border:none;color:var(--ink);font-size:13px;cursor:pointer;font-family:Inter,sans-serif" id="btnTogglePublish">🌍 Publish game</button>
+          <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+          <button onclick="deleteGame();closeMoreMenu()" style="display:block;width:100%;padding:10px 16px;text-align:left;background:none;border:none;color:#ef4444;font-size:13px;cursor:pointer;font-family:Inter,sans-serif">Delete game…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-body">
+    <nav class="dash-sidebar">
+      <div class="sidebar-section-label">Game</div>
+      <button class="nav-item active" id="navOverview" onclick="switchTab('overview', this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Overview
+      </button>
+      <button class="nav-item" id="navChallenges" onclick="switchTab('challenges', this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Challenges
+        <span class="nav-badge" id="badgeChallenges" style="display:none"></span>
+      </button>
+      <button class="nav-item" id="navLeaderboard" onclick="switchTab('leaderboard', this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8m4 13V11m4 10V5m4 16V9"/></svg>
+        Leaderboard
+      </button>
+      <button class="nav-item" id="navSubmissions" onclick="switchTab('submissions', this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+        Submissions
+        <span class="nav-badge alert" id="badgeSubmissions" style="display:none"></span>
+      </button>
+      <div class="sidebar-spacer"></div>
+      <button class="btn-exit" onclick="exitDashboard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Exit
+      </button>
+    </nav>
+
+    <div class="dash-main">
+
+      <!-- OVERVIEW -->
+      <div id="tabOverview" class="tab-panel active">
+        <div class="status-bar" id="statusBar">
+          <div>
+            <div class="status-bar-heading" id="statusBarHeading">Game is inactive</div>
+            <div class="status-bar-sub" id="statusBarSub">Start the game to let teams join using the code in the header</div>
+          </div>
+          <div class="status-bar-actions">
+            <button id="btnToggleGame" class="btn btn-primary" onclick="toggleGame()">▶ Start Game</button>
+            <button class="btn btn-ghost btn-sm" onclick="togglePublish()" id="btnPublishOverview">Publish</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:12px;color:var(--ink3);font-family:'DM Mono',monospace;letter-spacing:0.5px">LIVE DATA</div>
+          <div class="auto-refresh-badge"><span class="refresh-dot"></span> refreshes every 5s</div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-box-label">Challenges</div>
+            <div class="stat-box-val accent" id="ovChallenges">—</div>
+            <div class="stat-box-delta" id="ovChallengesSub">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">Teams</div>
+            <div class="stat-box-val" id="ovTeams">—</div>
+            <div class="stat-box-delta" id="ovTeamsSub">joined</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">Submissions</div>
+            <div class="stat-box-val" id="ovSubmissions">—</div>
+            <div class="stat-box-delta alert" id="ovSubmissionsSub">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">Completion</div>
+            <div class="stat-box-val" id="ovPossible">—</div>
+            <div class="stat-box-delta" id="ovPossibleSub">of possible</div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-weight:600;font-size:15px">Team Progress</div>
+          <div style="font-size:12px;color:var(--ink3)" id="progressSubtitle">submissions per team</div>
+        </div>
+        <div class="team-progress-list" id="teamProgressList">
+          <div class="spinner" style="width:20px;height:20px;margin:16px auto"></div>
+        </div>
+
+        <hr class="divider">
+        <div style="color:var(--ink3);font-size:13px;line-height:1.7">
+          <strong style="color:var(--ink)">Quick tips</strong><br>
+          • Click <strong>Start Game</strong> to make it joinable for players<br>
+          • Share the join code above — players enter it in the app<br>
+          • Head to <strong>Challenges</strong> to add or edit tasks<br>
+          • View real-time scores in <strong>Leaderboard</strong><br>
+          • Review team photos &amp; answers in <strong>Submissions</strong>
+        </div>
+      </div>
+
+      <!-- CHALLENGES -->
+      <div id="tabChallenges" class="tab-panel">
+        <div class="section-head">
+          <div class="section-title">Challenges</div>
+          <button class="btn btn-primary" onclick="openChallengeModal()">+ Add Challenge</button>
+        </div>
+        <div class="challenge-list" id="challengeList"><div class="spinner"></div></div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div id="tabLeaderboard" class="tab-panel">
+        <div class="section-head">
+          <div class="section-title">Leaderboard</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">↻ Refresh</button>
+        </div>
+        <div class="lb-list" id="lbList"><div class="spinner"></div></div>
+      </div>
+
+      <!-- SUBMISSIONS -->
+      <div id="tabSubmissions" class="tab-panel">
+        <div class="section-head">
+          <div class="section-title">Submissions</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-ghost btn-sm" onclick="loadSubmissions()">↻ Refresh</button>
+            <button class="btn btn-primary btn-sm" id="btnDownloadZip" onclick="downloadSubmissions()">↓ Download ZIP</button>
+          </div>
+        </div>
+
+        <div id="downloadProgress" style="display:none;margin-bottom:16px">
+          <div style="background:var(--surface);border:1px solid var(--border);padding:14px 18px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:13px;font-weight:600" id="dlStatusText">Preparing download...</span>
+              <span style="font-size:12px;color:var(--ink3)" id="dlCountText"></span>
+            </div>
+            <div style="background:var(--surface3);height:6px;overflow:hidden">
+              <div id="dlProgressBar" style="height:100%;background:var(--fire);width:0%;transition:width 0.3s ease"></div>
+            </div>
+          </div>
+        </div>
+        <div id="subList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-inner">
+      <button class="mobile-nav-btn active" id="mobileNavOverview" onclick="switchTab('overview',this);syncMobileNav('overview')">
+        <span class="mob-icon">📊</span>Overview
+      </button>
+      <button class="mobile-nav-btn" id="mobileNavChallenges" onclick="switchTab('challenges',this);syncMobileNav('challenges')">
+        <span class="mob-icon">🎯</span>Tasks
+      </button>
+      <button class="mobile-nav-btn" id="mobileNavLeaderboard" onclick="switchTab('leaderboard',this);syncMobileNav('leaderboard')">
+        <span class="mob-icon">🏆</span>Scores
+      </button>
+      <button class="mobile-nav-btn" id="mobileNavSubmissions" onclick="switchTab('submissions',this);syncMobileNav('submissions')">
+        <span class="mob-icon">📸</span>Subs
+      </button>
+      <button class="mobile-nav-btn exit-btn" onclick="exitDashboard()">
+        <span class="mob-icon">✕</span>Exit
+      </button>
+    </div>
+  </nav>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     MODALS
+══════════════════════════════════════ -->
+
+<!-- Challenge Modal -->
+<div class="overlay" id="overlayChallenge">
+  <div class="modal">
+    <h3 id="challengeModalTitle">Add Challenge</h3>
+    <input type="hidden" id="editChallengeId">
+    <div class="form-group">
+      <label class="form-label">Title *</label>
+      <input type="text" class="form-input" id="chTitle" placeholder="e.g. Find the bronze statue">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description *</label>
+      <textarea class="form-textarea" id="chDesc" placeholder="What do players need to do?"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="chType" onchange="onTypeChange()">
+          <option value="photo">📸 Photo</option>
+          <option value="text">💬 Text Response</option>
+          <option value="location">📍 Location</option>
+          <option value="location_photo">📍📸 Location + Photo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Points</label>
+        <input type="number" class="form-input" id="chPoints" value="100" min="0">
+      </div>
+    </div>
+    <div id="locationFields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Pick Location</label>
+        <div class="map-search-wrap">
+          <input type="text" id="mapSearch" placeholder="🔍 Search for a place...">
+        </div>
+        <div id="pinResult" style="display:none" class="pin-result">
+          <span>📍</span>
+          <span class="pin-coords" id="pinCoordsText"></span>
+          <span class="pin-clear" onclick="clearPin()" title="Clear">✕</span>
+        </div>
+        <div id="mapPicker"></div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:6px">Click anywhere on the map to drop a pin</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Check-in Radius <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink3)">— how close players must be</span></label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" class="form-input" id="chRadius" value="50" min="10" style="max-width:120px">
+          <span style="font-size:13px;color:var(--ink3)">metres &nbsp;·&nbsp; 50m ≈ half a block</span>
+        </div>
+      </div>
+      <input type="hidden" id="chLat">
+      <input type="hidden" id="chLng">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Extra Challenge <span style="font-weight:400;text-transform:none;letter-spacing:0">(shown after location confirm)</span></label>
+      <input type="text" class="form-input" id="chExtra" placeholder="Optional follow-up task">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Visibility</label>
+      <label class="toggle-row" for="chReleased">
+        <div>
+          <div class="toggle-row-label">Released to players</div>
+          <div class="toggle-row-sub">Players can see and complete this challenge</div>
+        </div>
+        <div class="toggle-switch">
+          <input type="checkbox" id="chReleased" checked onchange="onReleasedChange()">
+          <div class="toggle-track"></div>
+        </div>
+      </label>
+    </div>
+    <div class="form-group" id="scheduleGroup">
+      <label class="form-label">⏱ Scheduled Release <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink3)">— optional, unlocks automatically</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="toggle-row" for="chScheduled" style="flex:none;padding:10px 14px">
+          <div style="margin-right:10px">
+            <div class="toggle-row-label" style="font-size:13px">Enable timer</div>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="chScheduled" onchange="onScheduledChange()">
+            <div class="toggle-track"></div>
+          </div>
+        </label>
+      </div>
+      <div id="scheduleDelayRow" style="display:none;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" class="form-input" id="chDelayMins" value="30" min="1" max="999" style="max-width:90px">
+            <span style="font-size:13px;color:var(--ink3)">minutes after game starts</span>
+          </div>
+        </div>
+        <div class="form-hint" style="margin-top:8px">
+          ⏱ This challenge will be hidden from players until <strong id="schedulePreview">30 mins</strong> after the game starts.
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeOverlay('overlayChallenge')">Cancel</button>
+      <button class="btn btn-primary" id="btnSaveChallenge" onclick="saveChallenge()">Save Challenge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div class="overlay" id="overlayImage" onclick="closeOverlay('overlayImage')">
+  <img id="previewImg" src="" style="max-width:90vw;max-height:90vh;display:block">
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- ══════════════════════════════════════
+     FIREBASE LOGIC
+══════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc,
+  doc, query, where, orderBy, serverTimestamp, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getStorage, ref as storageRef, getBytes
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCalweB62EMw-WMgwwYqdLCeHTN7IqKM6E",
+  authDomain: "superscav-ce605.firebaseapp.com",
+  projectId: "superscav-ce605",
+  storageBucket: "superscav-ce605.firebasestorage.app",
+  messagingSenderId: "727616460135",
+  appId: "1:727616460135:web:05a73269cadb67f145cbc2"
+});
+
+const db = getFirestore(app);
+const storage = getStorage(app);
+let currentGameId = null;
+let currentGame = null;
+
+// ─── TOAST ───────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+window._toast = toast;
+
+// ─── PAGE NAV ─────────────────────────────────────────────────────
+window.showPage = function(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'pageLanding') loadLandingGames();
+};
+
+// ─── ENTER GAME ───────────────────────────────────────────────────
+window.enterGame = async function() {
+  const code = document.getElementById('manageCode').value.trim().toUpperCase();
+  const pass = document.getElementById('managePassword').value.trim();
+  const errEl = document.getElementById('manageError');
+  errEl.style.display = 'none';
+
+  if (!code || !pass) { showErr(errEl, 'Please enter both fields.'); return; }
+
+  const btn = document.getElementById('btnManageEnter');
+  btn.disabled = true; btn.textContent = 'Searching...';
+
+  try {
+    const snap = await getDocs(query(collection(db, 'games'), where('joinCode', '==', code)));
+    if (snap.empty) { showErr(errEl, 'No game found with that code.'); btn.disabled = false; btn.textContent = 'Enter Dashboard →'; return; }
+
+    const gameDoc = snap.docs[0];
+    const gameData = gameDoc.data();
+
+    if ((gameData.password || '').trim() !== pass) {
+      showErr(errEl, 'Incorrect password.'); btn.disabled = false; btn.textContent = 'Enter Dashboard →'; return;
+    }
+
+    loadDashboard(gameDoc.id, gameData);
+    btn.disabled = false; btn.textContent = 'Enter Dashboard →';
+  } catch (e) {
+    showErr(errEl, 'Error: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Enter Dashboard →';
+  }
+};
+
+// ─── CREATE GAME ──────────────────────────────────────────────────
+window.createGame = async function() {
+  const title = document.getElementById('createTitle').value.trim();
+  const desc = document.getElementById('createDesc').value.trim();
+  const pass = document.getElementById('createPassword').value.trim();
+  const published = document.getElementById('createPublish').checked;
+  const durationEnabled = document.getElementById('createDurationEnabled').checked;
+  const durationHours = parseInt(document.getElementById('createDurationHours').value) || 0;
+  const durationMins = parseInt(document.getElementById('createDurationMins').value) || 0;
+  const maxDurationMins = durationEnabled ? (durationHours * 60 + durationMins) : null;
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+
+  if (!title || !pass) { showErr(errEl, 'Title and password are required.'); return; }
+  if (durationEnabled && maxDurationMins < 1) { showErr(errEl, 'Duration must be at least 1 minute.'); return; }
+
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  try {
+    const code = genCode();
+    const gameData = {
+      title, description: desc, password: pass,
+      joinCode: code, hostId: 'web-admin',
+      isActive: false, published, isPublished: published,
+      startedAt: null, createdAt: serverTimestamp()
+    };
+    if (maxDurationMins) gameData.durationMinutes = maxDurationMins;
+    const ref = await addDoc(collection(db, 'games'), gameData);
+    toast(`Game created! Code: ${code}`);
+    document.getElementById('createTitle').value = '';
+    document.getElementById('createDesc').value = '';
+    document.getElementById('createPassword').value = '';
+    document.getElementById('createPublish').checked = false;
+    document.getElementById('createDurationEnabled').checked = false;
+    document.getElementById('createDurationHours').value = '1';
+    document.getElementById('createDurationMins').value = '0';
+    document.getElementById('durationPreview').style.display = 'none';
+    toggleDurationInputs();
+    btn.disabled = false; btn.textContent = 'Create Game →';
+    loadDashboard(ref.id, { title, description: desc, password: pass, joinCode: code, isActive: false, published, isPublished: published, startedAt: null, durationMinutes: maxDurationMins || null });
+  } catch (e) {
+    showErr(errEl, 'Error: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Create Game →';
+  }
+};
+
+// ─── LOAD DASHBOARD ───────────────────────────────────────────────
+function loadDashboard(gameId, gameData) {
+  currentGameId = gameId;
+  currentGame = gameData;
+  // Normalise startedAt to a plain Date if it's a Firestore Timestamp
+  if (currentGame.startedAt && currentGame.startedAt.toDate) {
+    currentGame.startedAt = currentGame.startedAt.toDate();
+  }
+  document.getElementById('headerGameName').textContent = gameData.title || 'Untitled Game';
+  document.getElementById('displayCode').textContent = gameData.joinCode || '—';
+  updateStatusUI();
+  updatePublishBtn();
+  showPage('pageDashboard');
+  switchTab('overview', document.querySelector('.nav-item'));
+  startAutoRefresh();
+  loadChallenges();
+}
+
+// ─── STATUS UI ────────────────────────────────────────────────────
+function formatCountdown(msLeft) {
+  if (msLeft <= 0) return '0:00';
+  const totalSecs = Math.floor(msLeft / 1000);
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) return `${h}h ${m}m ${String(s).padStart(2,'0')}s`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function updateStatusUI() {
+  const isActive = currentGame?.isActive;
+  const badge = document.getElementById('headerStatus');
+  const btn = document.getElementById('btnToggleGame');
+  const bar = document.getElementById('statusBar');
+  const heading = document.getElementById('statusBarHeading');
+  const sub = document.getElementById('statusBarSub');
+
+  if (isActive) {
+    badge.className = 'status-pill live';
+    badge.innerHTML = '<span class="live-dot"></span> Live';
+    btn.textContent = '■ End Game';
+    btn.className = 'btn btn-red';
+    if (bar) bar.classList.add('live');
+    if (heading) heading.textContent = 'Game is live';
+    // Show countdown if durationMinutes is set
+    if (sub) {
+      const startedAt = currentGame.startedAt;
+      const dur = currentGame.durationMinutes;
+      if (startedAt && dur) {
+        const endsAtMs = (startedAt instanceof Date ? startedAt.getTime() : new Date(startedAt).getTime()) + dur * 60000;
+        const msLeft = endsAtMs - Date.now();
+        if (msLeft > 0) {
+          sub.textContent = `⏱ ${formatCountdown(msLeft)} remaining`;
+        } else {
+          sub.textContent = 'Time is up — ending game…';
+        }
+      } else {
+        sub.textContent = 'Players can join the lobby using the code in the header';
+      }
+    }
+  } else {
+    badge.className = 'status-pill inactive';
+    badge.innerHTML = '● Inactive';
+    btn.textContent = '▶ Start Game';
+    btn.className = 'btn btn-primary';
+    if (bar) bar.classList.remove('live');
+    if (heading) heading.textContent = 'Game is inactive';
+    // Show duration hint if set
+    if (sub) {
+      if (currentGame?.durationMinutes) {
+        const h = Math.floor(currentGame.durationMinutes / 60);
+        const m = currentGame.durationMinutes % 60;
+        const label = [h && `${h}h`, m && `${m}m`].filter(Boolean).join(' ');
+        sub.textContent = `Will run for ${label} after starting — players can join the lobby now`;
+      } else {
+        sub.textContent = 'Players can join the lobby now — start the game when ready';
+      }
+    }
+  }
+}
+
+function updatePublishBtn() {
+  const isPublished = currentGame?.published;
+  const isClone = !!currentGame?.clonedFrom;
+
+  // Hide publish controls entirely for cloned games
+  ['btnTogglePublish', 'btnPublishOverview'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (isClone) {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = '';
+    if (isPublished) {
+      btn.textContent = 'Published';
+      btn.className = 'btn btn-green btn-sm';
+    } else {
+      btn.textContent = 'Publish';
+      btn.className = 'btn btn-ghost btn-sm';
+    }
+  });
+}
+
+// ─── TOGGLE GAME ─────────────────────────────────────────────────
+window.toggleGame = async function() {
+  const newState = !currentGame.isActive;
+  const update = { isActive: newState };
+  if (newState) {
+    update.startedAt = serverTimestamp();
+  }
+  await updateDoc(doc(db, 'games', currentGameId), update);
+  currentGame.isActive = newState;
+  if (newState) currentGame.startedAt = new Date();
+  updateStatusUI();
+  toast(newState ? '🟢 Game is now live!' : '⏹ Game ended');
+};
+
+// ─── TOGGLE PUBLISH ──────────────────────────────────────────────
+window.togglePublish = async function() {
+  const newState = !currentGame.published;
+  await updateDoc(doc(db, 'games', currentGameId), { published: newState, isPublished: newState });
+  currentGame.published = newState;
+  updatePublishBtn();
+  toast(newState ? '🌍 Game published to Browse!' : 'Game unpublished');
+};
+
+// ─── BROWSE GAMES ────────────────────────────────────────────────
+let _allBrowseGames = [];
+let _locPickerMap = null;
+let _locPickerMarker = null;
+let _locPickerCircle = null;
+let _searchLat = null;
+let _searchLng = null;
+let _locOpen = false;
+
+window.showBrowse = async function() {
+  showPage('pageBrowse');
+  document.getElementById('browseSearch').value = '';
+  document.getElementById('browseSearchClear').style.display = 'none';
+  document.getElementById('browseCount').style.display = 'none';
+  await loadBrowse();
+};
+
+window.loadBrowse = async function() {
+  document.getElementById('browseLoading').style.display = 'block';
+  document.getElementById('browseGrid').innerHTML = '';
+  _allBrowseGames = [];
+
+  const snap = await getDocs(query(
+    collection(db, 'games'),
+    where('published', '==', true),
+    orderBy('createdAt', 'desc')
+  )).catch(() =>
+    getDocs(query(collection(db, 'games'), where('published', '==', true)))
+  );
+
+  _allBrowseGames = await Promise.all(snap.docs.map(async d => {
+    const data = d.data();
+    const chSnap = await getDocs(collection(db, 'games', d.id, 'challenges'));
+    const released = chSnap.docs.filter(c => c.data().released !== false);
+    const locations = released.map(c => c.data().location).filter(l => l?.lat != null);
+    return { id: d.id, ...data, challengeCount: released.length, locations };
+  }));
+
+  document.getElementById('browseLoading').style.display = 'none';
+  renderBrowseGames(_allBrowseGames);
+  if (_locPickerMap) plotGamePins();
+};
+
+function renderBrowseGames(games) {
+  const el = document.getElementById('browseGrid');
+  const q = (document.getElementById('browseSearch').value || '').trim();
+
+  if (!games.length) {
+    el.innerHTML = '<div class="empty"><div class="e-icon">🔍</div><p>No games found</p></div>';
+    return;
+  }
+
+  const hl = (str) => q
+    ? str.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
+        '<mark style="background:rgba(232,56,10,0.25);color:var(--ink)">$1</mark>')
+    : str;
+
+  el.innerHTML = '<div class="games-grid">' + games.map(g => {
+    const title = g.title || 'Untitled';
+    const desc = g.description || 'No description provided.';
+    let distBadge = '';
+    if (_searchLat != null && g.locations.length) {
+      const minDist = Math.min(...g.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+      distBadge = '<span class="game-card-stat" style="color:var(--fire);border-color:rgba(232,56,10,0.25)">📍 ' +
+        (minDist < 1 ? Math.round(minDist * 1000) + 'm' : minDist.toFixed(1) + ' km') + ' away</span>';
+    }
+    const gid = g.id;
+    return `<div class="game-card" onclick="showPreview('${gid}')">` +
+      `<div class="game-card-title">${hl(title)}</div>` +
+      `<div class="game-card-desc">${hl(desc)}</div>` +
+      `<div class="game-card-meta">` +
+        `<span class="game-card-stat">🎯 ${g.challengeCount} challenge${g.challengeCount !== 1 ? 's' : ''}</span>` +
+        distBadge +
+        (g.isActive ? '<span class="game-card-live"><span class="live-dot"></span> Live now</span>' : '') +
+      `</div></div>`;
+  }).join('') + '</div>';
+}
+
+window.filterBrowse = function(val) {
+  const clear = document.getElementById('browseSearchClear');
+  clear.style.display = val.trim() ? 'block' : 'none';
+  applyFilters();
+};
+
+window.clearBrowseSearch = function() {
+  document.getElementById('browseSearch').value = '';
+  document.getElementById('browseSearchClear').style.display = 'none';
+  applyFilters();
+};
+
+function applyFilters() {
+  const q = (document.getElementById('browseSearch').value || '').trim().toLowerCase();
+  const radiusKm = parseFloat(document.getElementById('locRadius').value) || 10;
+  const countEl = document.getElementById('browseCount');
+
+  let filtered = _allBrowseGames;
+
+  if (q) {
+    filtered = filtered.filter(g =>
+      (g.title || '').toLowerCase().includes(q) ||
+      (g.description || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (_searchLat != null) {
+    filtered = filtered.filter(g =>
+      g.locations.some(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng) <= radiusKm)
+    );
+    filtered.sort((a, b) => {
+      const da = Math.min(...a.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+      const db2 = Math.min(...b.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+      return da - db2;
+    });
+  }
+
+  countEl.style.display = (q || _searchLat != null) ? 'block' : 'none';
+  countEl.textContent = filtered.length + ' result' + (filtered.length !== 1 ? 's' : '');
+  renderBrowseGames(filtered);
+
+  if (_searchLat != null) {
+    const matchingIds = new Set(
+      _allBrowseGames
+        .filter(g => g.locations.some(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng) <= radiusKm))
+        .map(g => g.id)
+    );
+    highlightGamePins(matchingIds);
+  } else {
+    highlightGamePins(null);
+  }
+
+  const locList = document.getElementById('locGamesList');
+  const locLabel = document.getElementById('locGamesLabel');
+  const locGrid = document.getElementById('locGamesGrid');
+
+  if (_searchLat != null) {
+    locList.style.display = 'block';
+    const locFiltered = _allBrowseGames.filter(g =>
+      g.locations.some(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng) <= radiusKm)
+    ).sort((a, b) => {
+      const da = Math.min(...a.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+      const db2 = Math.min(...b.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+      return da - db2;
+    });
+
+    locLabel.textContent = locFiltered.length
+      ? locFiltered.length + ' game' + (locFiltered.length !== 1 ? 's' : '') + ' within ' + radiusKm + ' km'
+      : 'No games in this area';
+
+    if (!locFiltered.length) {
+      locGrid.innerHTML = '<div style="color:var(--ink3);font-size:13px">Try increasing the radius or moving the pin</div>';
+    } else {
+      locGrid.innerHTML = locFiltered.map(g => {
+        const minDist = Math.min(...g.locations.map(l => haversineKm(_searchLat, _searchLng, l.lat, l.lng)));
+        const distLabel = minDist < 1 ? Math.round(minDist * 1000) + 'm' : minDist.toFixed(1) + ' km';
+        const gid = g.id;
+        return `<div class="game-card" onclick="showPreview('${gid}')" style="padding:12px 16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div>
+              <div class="game-card-title" style="font-size:17px">${g.title || 'Untitled'}</div>
+              <div class="game-card-desc" style="font-size:12px;margin-top:2px">${g.description || ''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--fire)">${distLabel}</div>
+              <div style="font-size:11px;color:var(--ink3)">${g.challengeCount} challenge${g.challengeCount !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } else {
+    locList.style.display = 'none';
+  }
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ─── LOCATION SEARCH BOX ─────────────────────────────────────────
+const LOC_COLORS = ['#e8380a','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+let _gameMapMarkers = [];
+
+window.toggleLocSearch = function() {
+  _locOpen = !_locOpen;
+  document.getElementById('locSearchBody').style.display = _locOpen ? 'block' : 'none';
+  document.getElementById('locSearchArrow').style.transform = _locOpen ? 'rotate(180deg)' : '';
+  if (_locOpen) setTimeout(initLocPickerMap, 100);
+};
+
+function initLocPickerMap() {
+  if (typeof google === 'undefined') { setTimeout(initLocPickerMap, 300); return; }
+
+  if (_locPickerMap) {
+    google.maps.event.trigger(_locPickerMap, 'resize');
+    return;
+  }
+
+  _locPickerMap = new google.maps.Map(document.getElementById('locPickerMap'), {
+    zoom: 10, center: { lat: -32.9, lng: 151.7 },
+    mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_TOP },
+    styles: [
+      { elementType: 'geometry', stylers: [{ color: '#1a1a1a' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#aaa' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#0f0f0f' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2e2e2e' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    ]
+  });
+
+  _locPickerMap.addListener('click', e => setLocPin(e.latLng.lat(), e.latLng.lng()));
+  plotGamePins();
+}
+
+function plotGamePins() {
+  _gameMapMarkers.forEach(g => g.markers.forEach(m => m.setMap(null)));
+  _gameMapMarkers = [];
+
+  const bounds = new google.maps.LatLngBounds();
+  let hasPoints = false;
+
+  _allBrowseGames.forEach((game, idx) => {
+    if (!game.locations.length) return;
+    const color = LOC_COLORS[idx % LOC_COLORS.length];
+    const gameMarkers = [];
+
+    game.locations.forEach(loc => {
+      const pos = { lat: loc.lat, lng: loc.lng };
+      bounds.extend(pos);
+      hasPoints = true;
+
+      const marker = new google.maps.Marker({
+        position: pos, map: _locPickerMap, title: game.title,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: color, fillOpacity: 0.9, strokeColor: '#ffffff', strokeWeight: 1.5 },
+        zIndex: 5,
+      });
+
+      marker.addListener('click', e => {
+        e.stop?.();
+        setLocPin(loc.lat, loc.lng);
+        _locPickerMap.panTo(pos);
+        _locPickerMap.setZoom(14);
+      });
+
+      gameMarkers.push(marker);
+    });
+
+    _gameMapMarkers.push({ gameId: game.id, markers: gameMarkers, color });
+  });
+
+  if (hasPoints) _locPickerMap.fitBounds(bounds, 40);
+
+  const gamesWithLocs = _allBrowseGames.filter(g => g.locations.length);
+  if (gamesWithLocs.length) {
+    const legend = document.getElementById('locMapLegend');
+    if (legend) {
+      legend.innerHTML = gamesWithLocs.map((g, idx) => {
+        const color = LOC_COLORS[idx % LOC_COLORS.length];
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink)">
+          <div style="width:10px;height:10px;background:${color};flex-shrink:0"></div>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${g.title || 'Untitled'}</span>
+        </div>`;
+      }).join('');
+      legend.style.display = 'flex';
+    }
+  }
+}
+
+function highlightGamePins(activeGameIds) {
+  _gameMapMarkers.forEach(gm => {
+    const isActive = !activeGameIds || activeGameIds.has(gm.gameId);
+    gm.markers.forEach(m => m.setIcon({
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: isActive ? 9 : 6,
+      fillColor: isActive ? gm.color : '#444',
+      fillOpacity: isActive ? 0.9 : 0.3,
+      strokeColor: isActive ? '#fff' : '#333',
+      strokeWeight: isActive ? 1.5 : 1,
+    }));
+  });
+}
+
+function setLocPin(lat, lng) {
+  _searchLat = lat; _searchLng = lng;
+  const pos = { lat, lng };
+  const radius = (parseFloat(document.getElementById('locRadius').value) || 10) * 1000;
+
+  if (_locPickerMarker) { _locPickerMarker.setPosition(pos); }
+  else {
+    _locPickerMarker = new google.maps.Marker({
+      position: pos, map: _locPickerMap, draggable: true,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#e8380a', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+    });
+    _locPickerMarker.addListener('dragend', e => setLocPin(e.latLng.lat(), e.latLng.lng()));
+  }
+
+  if (_locPickerCircle) { _locPickerCircle.setCenter(pos); _locPickerCircle.setRadius(radius); }
+  else {
+    _locPickerCircle = new google.maps.Circle({
+      map: _locPickerMap, center: pos, radius,
+      fillColor: '#e8380a', fillOpacity: 0.08,
+      strokeColor: '#e8380a', strokeOpacity: 0.5, strokeWeight: 1.5
+    });
+  }
+
+  document.getElementById('locPickerStatus').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+  document.getElementById('locRadius').oninput = function() {
+    updateRadiusLabel(this.value);
+    if (_locPickerCircle) _locPickerCircle.setRadius(parseFloat(this.value) * 1000);
+    if (_searchLat != null) applyFilters();
+  };
+
+  applyFilters();
+}
+
+window.searchByLocation = async function() {
+  const place = document.getElementById('locSearchInput').value.trim();
+  if (!place) return;
+  const statusEl = document.getElementById('locPickerStatus');
+  statusEl.textContent = 'Finding location...';
+  try {
+    const res = await fetch('https://maps.googleapis.com/maps/api/geocode/json?address=' + encodeURIComponent(place) + '&key=AIzaSyBuaTZHhbcFokjEhIKTh3YJwJUg6_O2ejs');
+    const data = await res.json();
+    if (!data.results?.length) { statusEl.textContent = 'Location not found'; return; }
+    const { lat, lng } = data.results[0].geometry.location;
+    statusEl.textContent = data.results[0].formatted_address;
+    if (_locPickerMap) { _locPickerMap.panTo({ lat, lng }); _locPickerMap.setZoom(12); }
+    setLocPin(lat, lng);
+  } catch(e) { statusEl.textContent = 'Search failed'; }
+};
+
+window.clearLocSearch = function() {
+  _searchLat = null; _searchLng = null;
+  if (_locPickerMarker) { _locPickerMarker.setMap(null); _locPickerMarker = null; }
+  if (_locPickerCircle) { _locPickerCircle.setMap(null); _locPickerCircle = null; }
+  document.getElementById('locPickerStatus').textContent = '';
+  document.getElementById('locSearchInput').value = '';
+  highlightGamePins(null);
+  applyFilters();
+};
+
+window.updateRadiusLabel = function(val) {
+  document.getElementById('radiusLabel').textContent = val + ' km';
+  if (_locPickerCircle) _locPickerCircle.setRadius(parseFloat(val) * 1000);
+  if (_searchLat != null) applyFilters();
+};
+
+window.renderBrowseGames = renderBrowseGames;
+
+// ─── GAME PREVIEW ────────────────────────────────────────────────
+window.showPreview = async function(gameId) {
+  showPage('pagePreview');
+  document.getElementById('previewTitle').textContent = 'Loading...';
+  document.getElementById('previewDesc').textContent = '';
+  document.getElementById('previewMeta').innerHTML = '';
+  document.getElementById('previewChallenges').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('clonePassword').value = '';
+  window._previewSourceId = gameId;
+
+  const [gameSnap, chSnap] = await Promise.all([
+    getDoc(doc(db, 'games', gameId)),
+    getDocs(query(collection(db, 'games', gameId, 'challenges'), orderBy('createdAt', 'asc')))
+  ]);
+
+  if (!gameSnap.exists()) { toast('Game not found', 'err'); showPage('pageBrowse'); return; }
+
+  const g = gameSnap.data();
+  const challenges = chSnap.docs.filter(d => d.data().released !== false);
+  window._previewChallenges = challenges;
+
+  document.getElementById('previewTitle').textContent = g.title || 'Untitled';
+  document.getElementById('previewDesc').textContent = g.description || '';
+
+  const totalPts = challenges.reduce((sum, d) => sum + (d.data().points || 0), 0);
+  document.getElementById('previewMeta').innerHTML = `
+    <span class="game-card-stat">🎯 ${challenges.length} challenge${challenges.length !== 1 ? 's' : ''}</span>
+    <span class="game-card-stat">⭐ ${totalPts} total points</span>
+    ${g.isActive ? '<span class="game-card-live"><span class="live-dot"></span> Live now</span>' : ''}
+  `;
+
+  if (!challenges.length) {
+    document.getElementById('previewChallenges').innerHTML = `<div class="empty"><div class="e-icon">🎯</div><p>No challenges yet</p></div>`;
+    return;
+  }
+
+  document.getElementById('previewChallenges').innerHTML = challenges.map((d, i) => {
+    const c = d.data();
+    const typeEmoji = { photo: '📸', text: '💬', location: '📍', location_photo: '📍📸' }[c.type] || '🎯';
+    return `<div class="preview-challenge">
+      <div class="preview-ch-num">${i + 1}</div>
+      <div class="preview-ch-body">
+        <div class="preview-ch-title">${typeEmoji} ${c.title}</div>
+        <div class="preview-ch-desc">${c.description || ''}</div>
+      </div>
+      <div class="preview-ch-pts">${c.points || 0}pt</div>
+    </div>`;
+  }).join('');
+};
+
+window.cloneGame = async function() {
+  const password = document.getElementById('clonePassword').value.trim();
+  if (!password) { toast('Set an admin password first', 'err'); return; }
+
+  const sourceId = window._previewSourceId;
+  if (!sourceId) return;
+
+  const btn = document.getElementById('btnCloneGame');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  try {
+    const sourceSnap = await getDoc(doc(db, 'games', sourceId));
+    const sourceData = sourceSnap.data();
+
+    const code = genCode();
+    const newRef = await addDoc(collection(db, 'games'), {
+      title: sourceData.title || 'Untitled',
+      description: sourceData.description || '',
+      password, joinCode: code, hostId: 'web-admin',
+      isActive: false, published: false, isPublished: false,
+      startedAt: null, durationMinutes: sourceData.durationMinutes || null,
+      clonedFrom: sourceId, createdAt: serverTimestamp()
+    });
+
+    const challenges = window._previewChallenges || [];
+    for (const ch of challenges) {
+      const chData = { ...ch.data() };
+      delete chData.createdAt;
+      chData.createdAt = serverTimestamp();
+      chData.released = true;
+      await addDoc(collection(db, 'games', newRef.id, 'challenges'), chData);
+    }
+
+    toast(`✓ Game copied! Code: ${code}`);
+    btn.disabled = false; btn.textContent = '▶ Use this Game';
+
+    loadDashboard(newRef.id, {
+      title: sourceData.title, description: sourceData.description,
+      password, joinCode: code, isActive: false, published: false
+    });
+
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+    btn.disabled = false; btn.textContent = '▶ Use this Game';
+  }
+};
+
+window.deleteGame = async function() {
+  if (!confirm(`Permanently delete "${currentGame?.title}"? This cannot be undone.`)) return;
+  await deleteDoc(doc(db, 'games', currentGameId));
+  toast('Game deleted', 'err');
+  exitDashboard();
+};
+
+// ─── STATS + AUTO REFRESH ─────────────────────────────────────────
+let refreshInterval = null;
+
+async function loadStats() {
+  const [chSnap, plSnap, subSnap] = await Promise.all([
+    getDocs(collection(db, 'games', currentGameId, 'challenges')),
+    getDocs(collection(db, 'games', currentGameId, 'players')),
+    getDocs(collection(db, 'games', currentGameId, 'submissions')),
+  ]);
+
+  const numChallenges = chSnap.size;
+  const teams = plSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const numTeams = teams.length;
+  const totalSubs = subSnap.size;
+  const possibleTotal = numChallenges * numTeams;
+
+  document.getElementById('ovChallenges').textContent = numChallenges;
+  document.getElementById('ovTeams').textContent = numTeams;
+  document.getElementById('ovSubmissions').textContent = totalSubs;
+  document.getElementById('ovPossible').textContent = possibleTotal > 0 ? Math.round((totalSubs/possibleTotal)*100) + '%' : '—';
+
+  const hiddenCount = chSnap.docs.filter(d => d.data().released === false).length;
+  const scheduledCount = chSnap.docs.filter(d => d.data().releaseAfterMinutes).length;
+  const el_chSub = document.getElementById('ovChallengesSub');
+  if (el_chSub) el_chSub.textContent = [hiddenCount && hiddenCount + ' hidden', scheduledCount && scheduledCount + ' scheduled'].filter(Boolean).join(' · ') || 'all live';
+
+  const el_teamsSub = document.getElementById('ovTeamsSub');
+  if (el_teamsSub) el_teamsSub.textContent = numTeams === 0 ? 'none yet' : numTeams === 1 ? '1 team joined' : numTeams + ' teams joined';
+
+  const revokedCount = subSnap.docs.filter(d => d.data().pointsRevoked).length;
+  const el_subSub = document.getElementById('ovSubmissionsSub');
+  if (el_subSub) {
+    el_subSub.textContent = revokedCount > 0 ? revokedCount + ' revoked' : 'all approved';
+    el_subSub.className = 'stat-box-delta' + (revokedCount > 0 ? ' alert' : '');
+  }
+
+  const el_possSub = document.getElementById('ovPossibleSub');
+  if (el_possSub) el_possSub.textContent = possibleTotal > 0 ? totalSubs + ' of ' + possibleTotal + ' possible' : 'add challenges to track';
+
+  const badgeCh = document.getElementById('badgeChallenges');
+  if (badgeCh) { badgeCh.textContent = numChallenges; badgeCh.style.display = numChallenges ? '' : 'none'; }
+  const badgeSub = document.getElementById('badgeSubmissions');
+  if (badgeSub) { badgeSub.textContent = totalSubs; badgeSub.style.display = totalSubs ? '' : 'none'; }
+
+  const subsByTeam = {};
+  subSnap.docs.forEach(d => {
+    const s = d.data();
+    const key = s.playerId || s.teamName || 'unknown';
+    subsByTeam[key] = (subsByTeam[key] || 0) + 1;
+  });
+
+  const el = document.getElementById('teamProgressList');
+  if (!numTeams) {
+    el.innerHTML = `<div style="color:var(--ink3);font-size:13px;padding:8px 0">No teams have joined yet.</div>`;
+    document.getElementById('progressSubtitle').textContent = 'submissions per team';
+    return;
+  }
+
+  document.getElementById('progressSubtitle').textContent =
+    `out of ${numChallenges} challenge${numChallenges !== 1 ? 's' : ''} each`;
+
+  const sorted = [...teams].sort((a, b) => {
+    const ka = a.id; const kb = b.id;
+    return (subsByTeam[kb] || 0) - (subsByTeam[ka] || 0);
+  });
+
+  el.innerHTML = sorted.map(team => {
+    const teamKey = team.id;
+    const done = subsByTeam[teamKey] || 0;
+    const pct = numChallenges > 0 ? Math.min(100, Math.round((done / numChallenges) * 100)) : 0;
+    const complete = done >= numChallenges && numChallenges > 0;
+    return `<div class="tp-row">
+      <div class="tp-top">
+        <div class="tp-name">${team.teamName || 'Unnamed Team'}</div>
+        <div>
+          <div class="tp-count">${done}<span style="font-size:13px;color:var(--ink3);font-family:'Inter',sans-serif;font-weight:400"> / ${numChallenges}</span></div>
+          <div class="tp-fraction">${pct}% complete${complete ? ' ✓' : ''}</div>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill ${complete ? 'complete' : ''}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let countdownInterval = null;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  loadStats();
+  refreshInterval = setInterval(() => {
+    if (currentGameId) loadStats();
+  }, 5000);
+  // 1-second ticker just for the countdown display
+  countdownInterval = setInterval(() => {
+    const startedAt = currentGame?.startedAt;
+    const dur = currentGame?.durationMinutes;
+    if (currentGame?.isActive && startedAt && dur) {
+      const endsAtMs = (startedAt instanceof Date ? startedAt.getTime() : new Date(startedAt).getTime()) + dur * 60000;
+      const msLeft = endsAtMs - Date.now();
+      const sub = document.getElementById('statusBarSub');
+      if (sub && currentGame.isActive) {
+        if (msLeft > 0) {
+          sub.textContent = `⏱ ${formatCountdown(msLeft)} remaining`;
+        } else {
+          sub.textContent = 'Time is up — ending game…';
+          // Auto-end the game
+          if (currentGame.isActive) {
+            currentGame.isActive = false;
+            updateDoc(doc(db, 'games', currentGameId), { isActive: false }).catch(() => {});
+            updateStatusUI();
+            toast('⏹ Time is up — game ended automatically');
+          }
+        }
+      }
+    }
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+}
+
+// ─── CHALLENGES ───────────────────────────────────────────────────
+const TYPE_ICON = { photo: '📷', text: '💬', location: '📍', location_photo: '📍' };
+const TYPE_CLASS = { photo: 'type-photo', text: 'type-text', location: 'type-location', location_photo: 'type-location_photo' };
+
+async function loadChallenges() {
+  const el = document.getElementById('challengeList');
+  el.innerHTML = '<div class="spinner"></div>';
+  const snap = await getDocs(query(
+    collection(db, 'games', currentGameId, 'challenges'),
+    orderBy('createdAt', 'asc')
+  ));
+  if (snap.empty) {
+    el.innerHTML = `<div class="empty"><div class="e-icon">🎯</div><p>No challenges yet. Add one above!</p></div>`;
+    return;
+  }
+
+  // Compute game start time for scheduling countdowns
+  const gameStarted = currentGame?.startedAt
+    ? (currentGame.startedAt instanceof Date ? currentGame.startedAt : currentGame.startedAt.toDate?.() || new Date(currentGame.startedAt))
+    : null;
+
+  const challenges = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Bucket into Live, Scheduled (released but delayed and not yet unlocked), Hidden
+  const live = [], scheduled = [], hidden = [];
+  challenges.forEach(c => {
+    const released = c.released !== false;
+    if (!released) { hidden.push(c); return; }
+    if (c.releaseAfterMinutes && gameStarted) {
+      const unlockAt = new Date(gameStarted.getTime() + c.releaseAfterMinutes * 60000);
+      if (unlockAt > new Date()) { scheduled.push({ ...c, _unlockAt: unlockAt }); return; }
+    } else if (c.releaseAfterMinutes && !gameStarted) {
+      scheduled.push({ ...c, _unlockAt: null }); return;
+    }
+    live.push(c);
+  });
+
+  function renderCard(c) {
+    const icon = TYPE_ICON[c.type] || '🎯';
+    const iconCls = TYPE_CLASS[c.type] || 'type-photo';
+    const safeTitle = (c.title||'').replace(/"/g,"'");
+
+    let badge = '';
+    let metaParts = [c.type?.toUpperCase()];
+
+    if (hidden.includes(c)) {
+      badge = '<span class="ch-badge hidden">Hidden</span>';
+    } else if (scheduled.find(s => s.id === c.id)) {
+      const sc = scheduled.find(s => s.id === c.id);
+      let timerLabel = 'Scheduled';
+      if (sc._unlockAt) {
+        const msLeft = sc._unlockAt - Date.now();
+        if (msLeft > 0) {
+          const totalMins = Math.round(msLeft / 60000);
+          const h = Math.floor(totalMins / 60), m = totalMins % 60;
+          timerLabel = 'Unlocks in ' + (h > 0 ? h + 'h ' : '') + m + 'm';
+        }
+      } else {
+        timerLabel = 'auto-unlock at ' + c.releaseAfterMinutes + 'm';
+      }
+      badge = '<span class="ch-badge timer">⏱ ' + timerLabel + '</span>';
+      metaParts.push('auto-unlock at ' + c.releaseAfterMinutes + 'm');
+    } else {
+      badge = '<span class="ch-badge live">Live</span>';
+    }
+
+    if (c.location) metaParts.push(c.location.radius + 'm radius');
+    const subCount = 0; // placeholder — could wire up per-challenge sub count later
+
+    const isHidden = hidden.find(h => h.id === c.id);
+    return `<div class="ch-card ${isHidden ? 'ch-hidden' : ''}">
+      <div class="ch-icon-box ${iconCls}">${icon}</div>
+      <div class="ch-body">
+        <div class="ch-title-row">
+          <span class="ch-title">${c.title}</span>
+          ${badge}
+        </div>
+        <div class="ch-desc">${c.description || ''}</div>
+        <div class="ch-meta-row">${metaParts.join(' · ')}</div>
+      </div>
+      <div class="ch-right">
+        <div class="ch-pts-block">
+          <span class="ch-pts">${c.points || 0}</span><span class="ch-pts-unit"> pt</span>
+        </div>
+        <div class="ch-actions">
+          <button class="btn btn-sm ${c.released !== false ? 'btn-green' : 'btn-ghost'}" onclick='toggleReleased("${c.id}", ${c.released !== false})' title="${c.released !== false ? 'Hide' : 'Release'}" style="font-size:15px;padding:5px 8px">${c.released !== false ? '👁' : '🔒'}</button>
+          <button class="btn btn-ghost btn-sm" onclick='editChallenge("${c.id}")' style="font-size:13px">✏️</button>
+          <button class="btn btn-red btn-sm" onclick='delChallenge("${c.id}","${safeTitle}")' style="font-size:13px">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function groupSection(label, items) {
+    if (!items.length) return '';
+    return `<div class="ch-group-head">
+      <span class="ch-group-label">${label}</span>
+      <span class="ch-group-count">${items.length}</span>
+      <span class="ch-group-line"></span>
+    </div>` + items.map(renderCard).join('');
+  }
+
+  el.innerHTML = groupSection('Live Now', live)
+    + groupSection('Scheduled', scheduled)
+    + groupSection('Hidden', hidden);
+}
+
+window.openChallengeModal = function() {
+  document.getElementById('challengeModalTitle').textContent = 'Add Challenge';
+  document.getElementById('editChallengeId').value = '';
+  document.getElementById('chTitle').value = '';
+  document.getElementById('chDesc').value = '';
+  document.getElementById('chType').value = 'photo';
+  document.getElementById('chPoints').value = '100';
+  document.getElementById('chLat').value = '';
+  document.getElementById('chLng').value = '';
+  document.getElementById('chRadius').value = '50';
+  document.getElementById('chExtra').value = '';
+  document.getElementById('chReleased').checked = true;
+  document.getElementById('chScheduled').checked = false;
+  document.getElementById('chDelayMins').value = '30';
+  document.getElementById('scheduleDelayRow').style.display = 'none';
+  document.getElementById('scheduleGroup').style.display = 'block';
+  document.getElementById('btnSaveChallenge').textContent = 'Add Challenge';
+  clearPin();
+  document.querySelector('#overlayChallenge .modal').classList.remove('wide');
+  onTypeChange();
+  openOverlay('overlayChallenge');
+};
+
+window.editChallenge = async function(id) {
+  const snap = await getDoc(doc(db, 'games', currentGameId, 'challenges', id));
+  if (!snap.exists()) return;
+  const c = snap.data();
+  document.getElementById('challengeModalTitle').textContent = 'Edit Challenge';
+  document.getElementById('editChallengeId').value = id;
+  document.getElementById('chTitle').value = c.title || '';
+  document.getElementById('chDesc').value = c.description || '';
+  document.getElementById('chType').value = c.type || 'photo';
+  document.getElementById('chPoints').value = c.points || 100;
+  document.getElementById('chExtra').value = c.extraChallenge || '';
+  document.getElementById('chReleased').checked = c.released !== false;
+  document.getElementById('chLat').value = c.location?.lat || '';
+  document.getElementById('chLng').value = c.location?.lng || '';
+  document.getElementById('chRadius').value = c.location?.radius || 50;
+  const hasSchedule = !!c.releaseAfterMinutes;
+  document.getElementById('chScheduled').checked = hasSchedule;
+  document.getElementById('chDelayMins').value = c.releaseAfterMinutes || 30;
+  document.getElementById('scheduleDelayRow').style.display = hasSchedule ? 'block' : 'none';
+  document.getElementById('scheduleGroup').style.display = 'block';
+  updateSchedulePreview();
+  document.getElementById('btnSaveChallenge').textContent = 'Save Changes';
+  onTypeChange();
+  if ((c.type === 'location' || c.type === 'location_photo') && c.location) {
+    const tryPin = () => {
+      if (_map) { setPin(c.location.lat, c.location.lng); _map.setZoom(16); }
+      else setTimeout(tryPin, 200);
+    };
+    setTimeout(tryPin, 300);
+  } else {
+    clearPin();
+  }
+  openOverlay('overlayChallenge');
+};
+
+window.saveChallenge = async function() {
+  const title = document.getElementById('chTitle').value.trim();
+  const desc = document.getElementById('chDesc').value.trim();
+  if (!title || !desc) { toast('Title and description required', 'err'); return; }
+
+  const type = document.getElementById('chType').value;
+  const points = parseInt(document.getElementById('chPoints').value) || 100;
+  const extra = document.getElementById('chExtra').value.trim();
+  const released = document.getElementById('chReleased').checked;
+  const scheduled = document.getElementById('chScheduled').checked;
+  const delayMins = parseInt(document.getElementById('chDelayMins').value) || 30;
+  const editId = document.getElementById('editChallengeId').value;
+
+  const btn = document.getElementById('btnSaveChallenge');
+  btn.disabled = true;
+
+  const data = { title, description: desc, type, points, released };
+  if (extra) data.extraChallenge = extra;
+  if (scheduled && released) {
+    data.releaseAfterMinutes = delayMins;
+  } else {
+    data.releaseAfterMinutes = null;
+  }
+  if (type === 'location' || type === 'location_photo') {
+    const lat = parseFloat(document.getElementById('chLat').value);
+    const lng = parseFloat(document.getElementById('chLng').value);
+    const radius = parseFloat(document.getElementById('chRadius').value) || 50;
+    if (!isNaN(lat) && !isNaN(lng)) data.location = { lat, lng, radius };
+  }
+
+  if (editId) {
+    await updateDoc(doc(db, 'games', currentGameId, 'challenges', editId), data);
+    toast('Challenge updated ✓');
+  } else {
+    data.createdAt = serverTimestamp();
+    await addDoc(collection(db, 'games', currentGameId, 'challenges'), data);
+    toast('Challenge added ✓');
+  }
+
+  btn.disabled = false;
+  closeOverlay('overlayChallenge');
+  loadChallenges();
+  loadStats();
+};
+
+window.onReleasedChange = function() {
+  const released = document.getElementById('chReleased').checked;
+  if (!released) {
+    document.getElementById('chScheduled').checked = false;
+    document.getElementById('scheduleDelayRow').style.display = 'none';
+  }
+};
+
+window.onScheduledChange = function() {
+  const on = document.getElementById('chScheduled').checked;
+  document.getElementById('scheduleDelayRow').style.display = on ? 'block' : 'none';
+  if (on) {
+    document.getElementById('chReleased').checked = true;
+    updateSchedulePreview();
+  }
+};
+
+function updateSchedulePreview() {
+  const mins = parseInt(document.getElementById('chDelayMins').value) || 30;
+  const el = document.getElementById('schedulePreview');
+  if (!el) return;
+  if (mins < 60) {
+    el.textContent = `${mins} min${mins !== 1 ? 's' : ''}`;
+  } else {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    el.textContent = m > 0 ? `${h}h ${m}m` : `${h} hour${h !== 1 ? 's' : ''}`;
+  }
+}
+
+document.getElementById('chDelayMins')?.addEventListener('input', updateSchedulePreview);
+
+window.delChallenge = async function(id, title) {
+  if (!confirm(`Delete "${title}"?`)) return;
+  await deleteDoc(doc(db, 'games', currentGameId, 'challenges', id));
+  toast('Challenge deleted', 'err');
+  loadChallenges(); loadStats();
+};
+
+window.toggleReleased = async function(id, currentState) {
+  await updateDoc(doc(db, 'games', currentGameId, 'challenges', id), { released: !currentState });
+  toast(!currentState ? '👁 Released to players' : '🔒 Hidden from players');
+  loadChallenges();
+};
+
+window.onTypeChange = function() {
+  const t = document.getElementById('chType').value;
+  const isLoc = t === 'location' || t === 'location_photo';
+  document.getElementById('locationFields').style.display = isLoc ? 'block' : 'none';
+  document.querySelector('#overlayChallenge .modal').classList.toggle('wide', isLoc);
+  if (isLoc) initMapPicker();
+};
+
+// ─── MAP PICKER ───────────────────────────────────────────────────
+let _map = null;
+let _marker = null;
+let _circle = null;
+
+function initMapPicker() {
+  if (typeof google === 'undefined') { setTimeout(initMapPicker, 300); return; }
+  if (_map) {
+    google.maps.event.trigger(_map, 'resize');
+    const lat = parseFloat(document.getElementById('chLat').value);
+    const lng = parseFloat(document.getElementById('chLng').value);
+    if (!isNaN(lat) && !isNaN(lng)) _map.panTo({ lat, lng });
+    return;
+  }
+
+  const mapEl = document.getElementById('mapPicker');
+  _map = new google.maps.Map(mapEl, {
+    center: { lat: -33.8688, lng: 151.2093 },
+    zoom: 13,
+    mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+    styles: [
+      { elementType: 'geometry', stylers: [{ color: '#1a1a1a' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#aaaaaa' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#0f0f0f' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2e2e2e' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    ]
+  });
+
+  _map.addListener('click', e => setPin(e.latLng.lat(), e.latLng.lng()));
+
+  const searchInput = document.getElementById('mapSearch');
+  const autocomplete = new google.maps.places.Autocomplete(searchInput);
+  autocomplete.bindTo('bounds', _map);
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (!place.geometry) return;
+    _map.panTo(place.geometry.location);
+    _map.setZoom(16);
+    setPin(place.geometry.location.lat(), place.geometry.location.lng());
+  });
+}
+
+function setPin(lat, lng) {
+  document.getElementById('chLat').value = lat;
+  document.getElementById('chLng').value = lng;
+  const pos = { lat, lng };
+
+  if (_marker) { _marker.setPosition(pos); }
+  else {
+    _marker = new google.maps.Marker({
+      position: pos, map: _map, draggable: true,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#e8380a', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
+    });
+    _marker.addListener('dragend', e => setPin(e.latLng.lat(), e.latLng.lng()));
+  }
+
+  const radius = parseFloat(document.getElementById('chRadius').value) || 50;
+  if (_circle) { _circle.setCenter(pos); _circle.setRadius(radius); }
+  else {
+    _circle = new google.maps.Circle({
+      map: _map, center: pos, radius,
+      fillColor: '#e8380a', fillOpacity: 0.12,
+      strokeColor: '#e8380a', strokeOpacity: 0.5, strokeWeight: 1.5,
+    });
+  }
+
+  document.getElementById('chRadius').oninput = () => {
+    const r = parseFloat(document.getElementById('chRadius').value) || 50;
+    if (_circle) _circle.setRadius(r);
+  };
+
+  document.getElementById('mapPicker').classList.add('has-pin');
+  document.getElementById('pinCoordsText').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  document.getElementById('pinResult').style.display = 'flex';
+  _map.panTo(pos);
+}
+
+window.clearPin = function() {
+  if (_marker) { _marker.setMap(null); _marker = null; }
+  if (_circle) { _circle.setMap(null); _circle = null; }
+  document.getElementById('chLat').value = '';
+  document.getElementById('chLng').value = '';
+  document.getElementById('mapPicker').classList.remove('has-pin');
+  document.getElementById('pinResult').style.display = 'none';
+};
+
+// ─── LEADERBOARD ─────────────────────────────────────────────────
+window.loadLeaderboard = async function() {
+  const el = document.getElementById('lbList');
+  el.innerHTML = '<div class="spinner"></div>';
+
+  const [playersSnap, subsSnap] = await Promise.all([
+    getDocs(collection(db, 'games', currentGameId, 'players')),
+    getDocs(collection(db, 'games', currentGameId, 'submissions')),
+  ]);
+
+  const teams = playersSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.points||0) - (a.points||0));
+
+  if (!teams.length) {
+    el.innerHTML = '<div class="empty"><div class="e-icon" style="font-size:32px">—</div><p>No teams yet</p></div>';
+    return;
+  }
+
+  const subsByTeam = {};
+  subsSnap.docs.forEach(d => {
+    const pid = d.data().playerId || 'unknown';
+    subsByTeam[pid] = (subsByTeam[pid] || 0) + 1;
+  });
+
+  const chCount = (await getDocs(collection(db, 'games', currentGameId, 'challenges'))).size;
+  const maxPts = teams[0]?.points || 1;
+  const COLORS = ['#e8380a','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+  const initials = name => (name||'?').charAt(0).toUpperCase();
+
+  let html = '';
+
+  if (teams.length === 1) {
+    // Single team — just show a row, no podium needed
+    const t = teams[0];
+    const done = subsByTeam[t.id] || 0;
+    html += '<div class="podium" style="grid-template-columns:1fr">' +
+      '<div class="podium-card gold">' +
+        '<div class="podium-medal gold">1</div>' +
+        '<div class="podium-name">' + (t.teamName||'Unnamed') + '</div>' +
+        '<div class="podium-pts">' + Math.round(t.points||0) + '</div>' +
+        '<div class="podium-meta">' + done + ' / ' + chCount + ' done</div>' +
+      '</div></div>';
+  } else if (teams.length === 2) {
+    // Two teams — gold left, silver right
+    html += '<div class="podium" style="grid-template-columns:1fr 1fr">';
+    [[teams[0],'gold'],[teams[1],'silver']].forEach(([t, medal]) => {
+      const done = subsByTeam[t.id] || 0;
+      html += '<div class="podium-card ' + medal + '">' +
+        '<div class="podium-medal ' + medal + '">' + (medal === 'gold' ? '1' : '2') + '</div>' +
+        '<div class="podium-name">' + (t.teamName||'Unnamed') + '</div>' +
+        '<div class="podium-pts">' + Math.round(t.points||0) + '</div>' +
+        '<div class="podium-meta">' + done + ' / ' + chCount + ' done</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  } else {
+    // 3+ teams — classic podium: 2nd, 1st, 3rd
+    const podiumOrder = [teams[1], teams[0], teams[2]];
+    const podiumMedals = ['silver', 'gold', 'bronze'];
+    html += '<div class="podium">';
+    podiumOrder.forEach((t, i) => {
+      const medal = podiumMedals[i];
+      const done = subsByTeam[t.id] || 0;
+      html += '<div class="podium-card ' + medal + '">' +
+        '<div class="podium-medal ' + medal + '">' + (i === 1 ? '1' : i === 0 ? '2' : '3') + '</div>' +
+        '<div class="podium-name">' + (t.teamName||'Unnamed') + '</div>' +
+        '<div class="podium-pts">' + Math.round(t.points||0) + '</div>' +
+        '<div class="podium-meta">' + done + ' / ' + chCount + ' done</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Rows for 4th place onwards
+  const startFrom = Math.min(teams.length, 3);
+  teams.slice(startFrom).forEach((t, i) => {
+    const rank = startFrom + i + 1;
+    const pct = maxPts > 0 ? Math.round((t.points||0)/maxPts*100) : 0;
+    const done = subsByTeam[t.id] || 0;
+    const color = COLORS[(startFrom + i) % COLORS.length];
+    html += '<div class="lb-row-new">' +
+      '<div class="lb-row-rank">' + String(rank).padStart(2,'0') + '</div>' +
+      '<div class="lb-row-av" style="background:' + color + '">' + initials(t.teamName) + '</div>' +
+      '<div><div class="lb-row-name-main">' + (t.teamName||'Unnamed') + '</div>' +
+        '<div class="lb-row-name-sub">' + done + ' / ' + chCount + ' done</div></div>' +
+      '<div class="lb-bar-cell">' +
+        '<div class="lb-bar"><div class="lb-bar-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="lb-pts-block"><span class="lb-pts-mono">' + Math.round(t.points||0) + '</span><span class="lb-pts-unit">pt</span></div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  el.innerHTML = html || '<div class="empty"><p>No rankings yet</p></div>';
+};
+
+// ─── SUBMISSIONS ─────────────────────────────────────────────────
+window.loadSubmissions = async function() {
+  const el = document.getElementById('subList');
+  el.innerHTML = '<div class="spinner"></div>';
+
+  const [subsSnap, playersSnap, challengesSnap] = await Promise.all([
+    getDocs(collection(db, 'games', currentGameId, 'submissions')),
+    getDocs(collection(db, 'games', currentGameId, 'players')),
+    getDocs(collection(db, 'games', currentGameId, 'challenges')),
+  ]);
+
+  if (subsSnap.empty) {
+    el.innerHTML = '<div class="empty"><p>No submissions yet</p></div>';
+    return;
+  }
+
+  const playerMap = {};
+  playersSnap.docs.forEach(d => { playerMap[d.id] = { teamName: d.data().teamName || d.id, points: d.data().points || 0 }; });
+
+  const challengeMap = {};
+  challengesSnap.docs.forEach(d => { challengeMap[d.id] = { title: d.data().title || 'Unknown', points: d.data().points || 0 }; });
+
+  const subs = subsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  renderSubList({ subs, playerMap, challengeMap }, window._currentSubTab || 'all');
+};
+
+const TEAM_COLORS = ['#e8380a','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const ms = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : new Date(ts).getTime());
+  const diff = Math.floor((Date.now() - ms) / 1000);
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+function renderSubList(data, tab) {
+  if (!data) return;
+  window._lastSubData = data;
+  const { subs, playerMap, challengeMap } = data;
+  const el = document.getElementById('subList');
+
+  if (!subs.length) {
+    el.innerHTML = '<div class="empty"><p>No submissions yet</p></div>';
+    return;
+  }
+
+  // Assign a stable colour to each team
+  const teamColorMap = {};
+  let colorIdx = 0;
+  Object.keys(playerMap).forEach(pid => { teamColorMap[pid] = TEAM_COLORS[colorIdx++ % TEAM_COLORS.length]; });
+
+  // Sort newest first
+  const sorted = [...subs].sort((a, b) => {
+    const ta = a.submittedAt?.seconds || 0;
+    const tb = b.submittedAt?.seconds || 0;
+    return tb - ta;
+  });
+
+  const cards = sorted.map(s => {
+    const pid = s.playerId || 'unknown';
+    const team = playerMap[pid] || { teamName: 'Unknown', points: 0 };
+    const chPts = challengeMap[s.challengeId]?.points ?? 0;
+    const chTitle = challengeMap[s.challengeId]?.title || s.challengeTitle || 'Unknown';
+    const isRevoked = s.pointsRevoked === true;
+    const safeUrl = (s.mediaUrl || '').replace(/'/g, '%27');
+    const color = teamColorMap[pid] || '#888';
+    const initial = (team.teamName || '?').charAt(0).toUpperCase();
+    const ago = timeAgo(s.submittedAt);
+
+    const metaParts = [s.type?.toUpperCase()].filter(Boolean);
+    if ((s.type === 'location' || s.type === 'location_photo') && s.distanceMetres != null) {
+      metaParts.push('within ' + s.distanceMetres + 'm of pin');
+    }
+
+    const imgHtml = s.mediaUrl
+      ? '<div class="sub-img-wrap"><img class="sub-img" src="' + safeUrl + '" onclick="previewImg(\'' + safeUrl + '\')" onerror="this.parentElement.innerHTML=\'<span>no image</span>\' "></div>'
+      : '<div class="sub-img-wrap" style="font-size:10px;padding:6px;text-align:center;line-height:1.3"><span>' + (s.type || 'sub') + '</span></div>';
+
+    return '<div class="sub-card ' + (isRevoked ? 'revoked' : '') + '" id="sub-' + s.id + '">' +
+      imgHtml +
+      '<div class="sub-body">' +
+        '<div class="sub-team-row">' +
+          '<div class="sub-team-av" style="background:' + color + '">' + initial + '</div>' +
+          '<span class="sub-team-name">' + team.teamName + '</span>' +
+          (ago ? '<span class="sub-team-time">' + ago + '</span>' : '') +
+        '</div>' +
+        '<div class="sub-challenge">' + chTitle + '</div>' +
+        '<div class="sub-meta-row">' + metaParts.join(' · ') + '</div>' +
+        (s.textResponse ? '<div class="sub-answer">&#8220;' + s.textResponse + '&#8221;</div>' : '') +
+      '</div>' +
+      '<div class="sub-actions-col">' +
+        '<div class="sub-pts-badge ' + (isRevoked ? 'revoked-pts' : '') + '">' +
+          chPts + '<span class="sub-pts-unit">pt</span>' +
+        '</div>' +
+        '<div class="sub-btn-row">' +
+          (isRevoked
+            ? '<button class="sub-action-btn restore-btn" onclick="togglePoints(\'' + s.id + '\',\'' + pid + '\',' + chPts + ',true)" title="Restore points">&#10003;</button>'
+            : '<button class="sub-action-btn revoke-btn" onclick="togglePoints(\'' + s.id + '\',\'' + pid + '\',' + chPts + ',false)" title="Revoke points">&#10005;</button>'
+          ) +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  el.innerHTML = '<div class="sub-list-inner">' + cards + '</div>';
+}
+window.togglePoints = async function(subId, playerId, pts, currentlyRevoked) {
+  const willRevoke = !currentlyRevoked;
+  const pointsDelta = willRevoke ? -pts : pts;
+
+  await updateDoc(doc(db, 'games', currentGameId, 'submissions', subId), { pointsRevoked: willRevoke });
+
+  const playerRef = doc(db, 'games', currentGameId, 'players', playerId);
+  const playerSnap = await getDoc(playerRef);
+  if (playerSnap.exists()) {
+    const current = playerSnap.data().points || 0;
+    await updateDoc(playerRef, { points: Math.max(0, current + pointsDelta) });
+  }
+
+  toast(willRevoke ? '✗ Points revoked (−' + pts + 'pts)' : '✓ Points awarded (+' + pts + 'pts)');
+  loadSubmissions();
+};
+
+// ─── IMAGE FETCH HELPER ───────────────────────────────────────────
+async function fetchImageAsBlob(url) {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'firebasestorage.googleapis.com') {
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+)$/);
+      if (pathMatch) {
+        const decodedPath = decodeURIComponent(pathMatch[1]);
+        const fileRef = storageRef(storage, decodedPath);
+        const bytes = await getBytes(fileRef);
+        return new Blob([bytes], { type: 'image/jpeg' });
+      }
+    }
+  } catch (sdkErr) {}
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('canvas failed')), 'image/jpeg', 0.92);
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = url;
+  });
+}
+
+// ─── DOWNLOAD SUBMISSIONS ZIP ─────────────────────────────────────
+window.downloadSubmissions = async function() {
+  const btn = document.getElementById('btnDownloadZip');
+  const progressBox = document.getElementById('downloadProgress');
+  const statusText = document.getElementById('dlStatusText');
+  const countText = document.getElementById('dlCountText');
+  const bar = document.getElementById('dlProgressBar');
+
+  btn.disabled = true;
+  progressBox.style.display = 'block';
+  bar.style.width = '0%';
+
+  const setProgress = (pct, msg, count = '') => {
+    bar.style.width = pct + '%';
+    statusText.textContent = msg;
+    countText.textContent = count;
+  };
+
+  try {
+    setProgress(5, 'Fetching data...');
+
+    const [subsSnap, playersSnap, challengesSnap] = await Promise.all([
+      getDocs(collection(db, 'games', currentGameId, 'submissions')),
+      getDocs(collection(db, 'games', currentGameId, 'players')),
+      getDocs(collection(db, 'games', currentGameId, 'challenges')),
+    ]);
+
+    const playerMap = {};
+    playersSnap.docs.forEach(d => { playerMap[d.id] = { teamName: d.data().teamName || d.id, points: d.data().points || 0 }; });
+
+    const challengeMap = {};
+    challengesSnap.docs.forEach(d => { challengeMap[d.id] = { title: d.data().title || 'Unknown', points: d.data().points || 0 }; });
+
+    const byTeam = {};
+    subsSnap.docs.forEach(d => {
+      const s = d.data();
+      const pid = s.playerId || 'unknown';
+      if (!byTeam[pid]) byTeam[pid] = [];
+      byTeam[pid].push({ id: d.id, ...s });
+    });
+
+    const teamIds = Object.keys(byTeam).sort((a, b) => {
+      const na = playerMap[a]?.teamName || a;
+      const nb = playerMap[b]?.teamName || b;
+      return na.localeCompare(nb);
+    });
+
+    const zip = new JSZip();
+    const gameTitle = (currentGame?.title || 'game').replace(/[^a-z0-9]/gi, '_');
+    const gameCode = currentGame?.joinCode || currentGameId;
+
+    const allPhotos = subsSnap.docs.filter(d => d.data().mediaUrl).length;
+    let photosDone = 0;
+
+    setProgress(10, 'Building folders...');
+
+    for (const pid of teamIds) {
+      const team = playerMap[pid] || { teamName: pid.split('_').slice(1).join('_') || pid, points: 0 };
+      const safeName = team.teamName.replace(/[^a-z0-9]/gi, '_');
+      const folder = zip.folder(safeName);
+      const subs = byTeam[pid];
+
+      let summary = `TEAM: ${team.teamName}\nTOTAL POINTS: ${Math.round(team.points)}\nSUBMISSIONS: ${subs.length}\n${'─'.repeat(40)}\n\n`;
+
+      for (let i = 0; i < subs.length; i++) {
+        const s = subs[i];
+        const chTitle = challengeMap[s.challengeId]?.title || s.challengeTitle || 'Unknown challenge';
+        const chPts = challengeMap[s.challengeId]?.points ?? 0;
+        const isRevoked = s.pointsRevoked === true;
+
+        summary += `${i + 1}. ${chTitle}\n`;
+        summary += `   Type: ${s.type || '—'}\n`;
+        summary += `   Points: ${isRevoked ? `REVOKED (was ${chPts}pts)` : `${chPts}pts`}\n`;
+        if (s.textResponse) summary += `   Response: ${s.textResponse}\n`;
+        if (s.mediaUrl) summary += `   Photo file: ${i + 1}_${chTitle.replace(/[^a-z0-9]/gi,'_')}.jpg\n`;
+        const ts = s.submittedAt?.toDate?.()?.toLocaleString() || '';
+        if (ts) summary += `   Submitted: ${ts}\n`;
+        summary += '\n';
+
+        if (s.mediaUrl) {
+          try {
+            const blob = await fetchImageAsBlob(s.mediaUrl);
+            const ext = blob.type.includes('png') ? 'png' : 'jpg';
+            const filename = `${i + 1}_${chTitle.replace(/[^a-z0-9]/gi,'_')}.${ext}`;
+            folder.file(filename, blob);
+          } catch (e) {
+            summary += `   [Photo URL: ${s.mediaUrl}]\n`;
+          }
+          photosDone++;
+          const pct = 10 + Math.round((photosDone / Math.max(allPhotos, 1)) * 80);
+          setProgress(pct, `Downloading photos...`, `${photosDone} / ${allPhotos}`);
+        }
+      }
+
+      folder.file('summary.txt', summary);
+    }
+
+    let masterSummary = `GAME: ${currentGame?.title || gameCode}\nCODE: ${gameCode}\nEXPORTED: ${new Date().toLocaleString()}\nTEAMS: ${teamIds.length}\n\n${'═'.repeat(40)}\n\n`;
+    teamIds.forEach(pid => {
+      const team = playerMap[pid] || { teamName: pid, points: 0 };
+      masterSummary += `${team.teamName}: ${Math.round(team.points)}pts, ${byTeam[pid].length} submission(s)\n`;
+    });
+    zip.file('_summary.txt', masterSummary);
+
+    setProgress(95, 'Zipping files...');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    setProgress(100, 'Done!');
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${gameTitle}_${gameCode}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast('✓ Download started!');
+    setTimeout(() => { progressBox.style.display = 'none'; btn.disabled = false; }, 2000);
+
+  } catch (e) {
+    setProgress(0, '✗ Download failed: ' + e.message);
+    toast('Download failed: ' + e.message, 'err');
+    btn.disabled = false;
+  }
+};
+
+// ─── COPY CODE ────────────────────────────────────────────────────
+window.copyCode = function() {
+  navigator.clipboard.writeText(currentGame?.joinCode || '');
+  toast('Join code copied!');
+};
+
+// ─── TABS ─────────────────────────────────────────────────────────
+window.switchTab = function(tab, btn) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  syncMobileNav(tab);
+  if (tab === 'leaderboard') loadLeaderboard();
+  if (tab === 'submissions') loadSubmissions();
+};
+
+window.syncMobileNav = function(tab) {
+  document.querySelectorAll('.mobile-nav-btn').forEach(n => n.classList.remove('active'));
+  const map = { overview: 'mobileNavOverview', challenges: 'mobileNavChallenges', leaderboard: 'mobileNavLeaderboard', submissions: 'mobileNavSubmissions' };
+  if (map[tab]) document.getElementById(map[tab])?.classList.add('active');
+};
+
+// ─── LANDING LIVE GAMES ──────────────────────────────────────────
+window.loadLandingGames = async function() {
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'games'),
+      where('published', '==', true),
+      where('isActive', '==', true)
+    ));
+    const el = document.getElementById('landingLiveGames');
+    if (!el) return;
+    if (snap.empty) {
+      el.innerHTML = '<div style="color:var(--ink3);font-size:12px;font-family:\'DM Mono\',monospace">No live games right now</div>';
+      return;
+    }
+    el.innerHTML = snap.docs.map(d => {
+      const g = d.data();
+      return '<div class="landing-live-card" onclick="showBrowse()">' +
+        '<div class="green-pip"></div>' +
+        '<div class="landing-live-meta">' +
+          '<div class="landing-live-title">' + (g.title||'Untitled') + '</div>' +
+          '<div class="landing-live-detail">' + (g.description||'') + '</div>' +
+        '</div>' +
+       '</div>';
+    }).join('');
+  } catch(e) {}
+};
+
+// ─── MORE MENU ────────────────────────────────────────────────────
+window.toggleMoreMenu = function() {
+  const d = document.getElementById('moreMenuDropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+};
+window.closeMoreMenu = function() {
+  document.getElementById('moreMenuDropdown').style.display = 'none';
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dash-more-menu')) closeMoreMenu();
+});
+
+window.exitDashboard = function() {
+  stopAutoRefresh();
+  currentGameId = null; currentGame = null;
+  showPage('pageLanding');
+};
+
+window.openOverlay = function(id) { document.getElementById(id).classList.add('open'); };
+window.closeOverlay = function(id) { document.getElementById(id).classList.remove('open'); };
+
+window.previewImg = function(url) {
+  document.getElementById('previewImg').src = url;
+  openOverlay('overlayImage');
+};
+
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length: 5}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+document.getElementById('managePassword').addEventListener('keydown', e => { if (e.key === 'Enter') enterGame(); });
+document.getElementById('manageCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+
+// ─── DURATION HELPERS ─────────────────────────────────────────────
+window.toggleDurationInputs = function() {
+  const enabled = document.getElementById('createDurationEnabled').checked;
+  const hoursEl = document.getElementById('createDurationHours');
+  const minsEl = document.getElementById('createDurationMins');
+  hoursEl.disabled = !enabled;
+  minsEl.disabled = !enabled;
+  hoursEl.style.opacity = enabled ? '1' : '0.4';
+  minsEl.style.opacity = enabled ? '1' : '0.4';
+  if (enabled) {
+    updateDurationPreview();
+  } else {
+    document.getElementById('durationPreview').style.display = 'none';
+  }
+};
+
+window.updateDurationPreview = function() {
+  const enabled = document.getElementById('createDurationEnabled').checked;
+  if (!enabled) return;
+  const h = parseInt(document.getElementById('createDurationHours').value) || 0;
+  const m = parseInt(document.getElementById('createDurationMins').value) || 0;
+  const total = h * 60 + m;
+  const preview = document.getElementById('durationPreview');
+  if (total < 1) {
+    preview.textContent = 'Enter at least 1 minute';
+    preview.style.display = 'block';
+    return;
+  }
+  const label = [h && `${h} hour${h !== 1 ? 's' : ''}`, m && `${m} minute${m !== 1 ? 's' : ''}`].filter(Boolean).join(' and ');
+  preview.textContent = `Game will end automatically after ${label}`;
+  preview.style.display = 'block';
+};
+
+// Init duration inputs as disabled
+(function() {
+  const hoursEl = document.getElementById('createDurationHours');
+  const minsEl = document.getElementById('createDurationMins');
+  if (hoursEl) { hoursEl.disabled = true; hoursEl.style.opacity = '0.4'; }
+  if (minsEl) { minsEl.disabled = true; minsEl.style.opacity = '0.4'; }
+})();
+
+// Init landing on load
+loadLandingGames();
+</script>
+</body>
+</html>

@@ -12,28 +12,33 @@ import 'package:geolocator_android/geolocator_android.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:path_provider_android/path_provider_android.dart';
+import 'package:shared_preferences_android/shared_preferences_android.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:geocoding_ios/geocoding_ios.dart';
 import 'package:geolocator_apple/geolocator_apple.dart';
 import 'package:google_maps_flutter_ios/google_maps_flutter_ios.dart';
 import 'package:image_picker_ios/image_picker_ios.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector_linux/file_selector_linux.dart';
 import 'package:image_picker_linux/image_picker_linux.dart';
 import 'package:path_provider_linux/path_provider_linux.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences_linux/shared_preferences_linux.dart';
 import 'package:url_launcher_linux/url_launcher_linux.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector_macos/file_selector_macos.dart';
 import 'package:geolocator_apple/geolocator_apple.dart';
 import 'package:image_picker_macos/image_picker_macos.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_selector_windows/file_selector_windows.dart';
 import 'package:image_picker_windows/image_picker_windows.dart';
 import 'package:path_provider_windows/path_provider_windows.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences_windows/shared_preferences_windows.dart';
 import 'package:url_launcher_windows/url_launcher_windows.dart';
 
 @pragma('vm:entry-point')
@@ -96,6 +101,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        SharedPreferencesAndroid.registerWith();
+      } catch (err) {
+        print(
+          '`shared_preferences_android` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isIOS) {
       try {
         FilePickerIO.registerWith();
@@ -151,6 +165,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        SharedPreferencesFoundation.registerWith();
+      } catch (err) {
+        print(
+          '`shared_preferences_foundation` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isLinux) {
       try {
         FilePickerLinux.registerWith();
@@ -193,6 +216,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`share_plus` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        SharedPreferencesLinux.registerWith();
+      } catch (err) {
+        print(
+          '`shared_preferences_linux` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }
@@ -252,6 +284,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        SharedPreferencesFoundation.registerWith();
+      } catch (err) {
+        print(
+          '`shared_preferences_foundation` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isWindows) {
       try {
         FilePickerWindows.registerWith();
@@ -294,6 +335,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`share_plus` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        SharedPreferencesWindows.registerWith();
+      } catch (err) {
+        print(
+          '`shared_preferences_windows` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }

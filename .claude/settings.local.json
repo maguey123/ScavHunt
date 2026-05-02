@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\root\\\\Documents\\\\ScavHunt\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(flutter pub *)",
+      "Bash(flutter analyze *)"
+    ]
+  }
+}

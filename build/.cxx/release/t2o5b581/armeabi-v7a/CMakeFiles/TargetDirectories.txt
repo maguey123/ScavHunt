@@ -1,2 +1,0 @@
-C:/Users/root/Documents/Flutter/smart_scav/build/.cxx/release/t2o5b581/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/root/Documents/Flutter/smart_scav/build/.cxx/release/t2o5b581/armeabi-v7a/CMakeFiles/rebuild_cache.dir

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'admin/create_game_page.dart';
-import 'admin/manage_login_page.dart';
+import 'manage_games_page.dart';
 import 'player/join_game_page.dart';
-import 'browse_games_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -42,50 +40,25 @@ class HomePage extends StatelessWidget {
 
           // ── Primary CTAs ──────────────────────────────────
           SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 36, 24, 0),
+            padding: const EdgeInsets.fromLTRB(24, 36, 24, 48),
             child: Column(children: [
-              _ActionCard(
-                emoji: '✨',
-                title: 'Create a new game',
-                subtitle: 'Set up challenges, get a 5-letter join code',
-                accent: true,
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const CreateGamePage())),
-              ),
-              const SizedBox(height: 10),
               _ActionCard(
                 emoji: '▶️',
                 title: 'Join a game',
                 subtitle: 'Enter a code and play with your team',
+                accent: true,
                 onTap: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) => const JoinGamePage())),
               ),
               const SizedBox(height: 10),
               _ActionCard(
-                emoji: '🌍',
-                title: 'Browse public games',
-                subtitle: 'Find a pre-made hunt and host it yourself',
+                emoji: '🛠️',
+                title: 'Manage games',
+                subtitle: 'Create, browse, or manage a scavenger hunt',
                 onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const BrowseGamesPage())),
+                  builder: (_) => const ManageGamesPage())),
               ),
             ]),
-          )),
-
-          // ── Admin section ─────────────────────────────────
-          SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
-            child: const ScavSectionLabel('Admin', padding: EdgeInsets.zero),
-          )),
-
-          SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
-            child: _ActionCard(
-              emoji: '🔑',
-              title: 'Manage a game',
-              subtitle: 'Password-protected dashboard for organisers',
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => const ManageLoginPage())),
-            ),
           )),
         ]),
       ),
@@ -112,7 +85,7 @@ class _ActionCard extends StatelessWidget {
         color: accent ? ScavColors.accentLo : ScavColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: accent ? ScavColors.accent.withOpacity(0.5) : ScavColors.border),
+          color: accent ? ScavColors.accent.withValues(alpha: 0.5) : ScavColors.border),
       ),
       child: Row(children: [
         Container(
