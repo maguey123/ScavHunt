@@ -60,11 +60,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAfgn21WuPiP3-jpMbNUgJfpM1_1sdvVyY',
-    appId: '1:727616460135:ios:61eac958100b6d5345cbc2',
+    appId: '1:727616460135:ios:5f8cc79d96ef33a745cbc2',
     messagingSenderId: '727616460135',
     projectId: 'superscav-ce605',
     storageBucket: 'superscav-ce605.firebasestorage.app',
-    iosBundleId: 'com.example.smartScav',
+    iosBundleId: 'com.nograss.superscav',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '727616460135',
     projectId: 'superscav-ce605',
     storageBucket: 'superscav-ce605.firebasestorage.app',
-    iosBundleId: 'com.example.smartScav',
+    iosBundleId: 'com.nograss.superscav',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
