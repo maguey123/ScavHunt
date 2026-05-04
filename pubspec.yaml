@@ -2,7 +2,7 @@ name: superscav
 description: "A scavenger hunt game built with Flutter and Firebase."
 publish_to: 'none'
 
-version: 1.0.3+3
+version: 1.0.4+3
 
 environment:
   sdk: ^3.9.2

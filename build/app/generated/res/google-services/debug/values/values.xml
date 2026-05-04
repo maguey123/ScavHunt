@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="gcm_defaultSenderId" translatable="false">727616460135</string>
-    <string name="google_api_key" translatable="false">AIzaSyBRzLGQcGxw0isWTj-_9-QXEzpcT3H4u9w</string>
-    <string name="google_app_id" translatable="false">1:727616460135:android:1cc0d6ab14e9686745cbc2</string>
-    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBRzLGQcGxw0isWTj-_9-QXEzpcT3H4u9w</string>
-    <string name="google_storage_bucket" translatable="false">superscav-ce605.firebasestorage.app</string>
-    <string name="project_id" translatable="false">superscav-ce605</string>
-</resources>
