@@ -62,20 +62,28 @@ class ChallengeService {
 
   /// Returns only challenges visible to players right now.
   /// A challenge is visible if:
-  ///   - released == true AND releaseAfterMinutes == null, OR
-  ///   - startedAt + releaseAfterMinutes <= now
+  ///   - released == true
+  ///   - its prerequisite challenge (if any) has been completed by this player
+  ///   - releaseAfterMinutes has elapsed since game start (if set)
   static List<QueryDocumentSnapshot> filterVisibleChallenges(
     List<QueryDocumentSnapshot> all,
-    DateTime? gameStartedAt,
-  ) {
+    DateTime? gameStartedAt, {
+    Set<String> completedIds = const {},
+  }) {
     final now = DateTime.now();
     return all.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
       final released = data['released'] ?? true;
       if (!released) return false;
 
+      // Prerequisite: hidden until a specific challenge is completed
+      final prereqId = data['unlocksAfterChallengeId'] as String?;
+      if (prereqId != null && prereqId.isNotEmpty && !completedIds.contains(prereqId)) {
+        return false;
+      }
+
       final releaseAfter = data['releaseAfterMinutes'];
-      if (releaseAfter == null) return true; // immediately available
+      if (releaseAfter == null) return true;
 
       if (gameStartedAt == null) return false;
       final unlockTime = gameStartedAt.add(Duration(minutes: releaseAfter as int));

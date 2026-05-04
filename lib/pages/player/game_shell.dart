@@ -72,7 +72,18 @@ class _GameShellState extends State<GameShell> {
           .orderBy('createdAt', descending: false)
           .get();
 
-      final visible = ChallengeService.filterVisibleChallenges(snap.docs, startedAt);
+      // Fetch which challenges this player has already completed
+      final subsSnap = await FirebaseFirestore.instance
+          .collection('games').doc(widget.gameId)
+          .collection('submissions')
+          .where('playerId', isEqualTo: widget.playerId)
+          .get();
+      final completedIds = subsSnap.docs
+          .map((s) => (s.data() as Map)['challengeId'] as String? ?? '')
+          .toSet();
+
+      final visible = ChallengeService.filterVisibleChallenges(
+          snap.docs, startedAt, completedIds: completedIds);
 
       if (!mounted) return;
       setState(() {

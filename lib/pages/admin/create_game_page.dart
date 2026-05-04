@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_service.dart';
+import '../../services/session_service.dart';
 import 'admin_shell.dart';
 
 class CreateGamePage extends StatefulWidget {
@@ -228,8 +229,14 @@ class _CreateGamePageState extends State<CreateGamePage> {
     const SizedBox(height: 24),
     ScavPrimaryButton(
       label: 'Open Dashboard',
-      onPressed: () {
+      onPressed: () async {
         if (_gameId == null || _joinCode == null) return;
+        await SessionService.saveManaged(
+          gameId:   _gameId!,
+          joinCode: _joinCode!,
+          title:    _titleCtrl.text.trim(),
+        );
+        if (!mounted) return;
         Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (_) => AdminShell(gameId: _gameId!, joinCode: _joinCode!)));
       },

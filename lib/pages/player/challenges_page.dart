@@ -178,14 +178,17 @@ class PlayerChallengesPage extends StatelessWidget {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: GestureDetector(
-                                onTap: isDone ? null : () => Navigator.push(context, MaterialPageRoute(
-                                  builder: (_) => ChallengeDetailPage(
-                                    gameId:      gameId,
-                                    challengeId: doc.id,
-                                    data:        data,
-                                    teamName:    teamName,
-                                    playerId:    playerId,
-                                  ))),
+                                onTap: isDone ? null : () async {
+                                  await Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => ChallengeDetailPage(
+                                      gameId:      gameId,
+                                      challengeId: doc.id,
+                                      data:        data,
+                                      teamName:    teamName,
+                                      playerId:    playerId,
+                                    )));
+                                  await onRefresh();
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
+import '../../services/session_service.dart';
 import 'admin_shell.dart';
 
 class ManageLoginPage extends StatefulWidget {
@@ -12,6 +13,19 @@ class _ManageLoginPageState extends State<ManageLoginPage> {
   final _codeCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _loading = false, _obsPass = true;
+  bool _rejoinLoading = false;
+  Map<String, String>? _savedSession;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedSession();
+  }
+
+  Future<void> _loadSavedSession() async {
+    final session = await SessionService.loadManaged();
+    if (mounted) setState(() => _savedSession = session);
+  }
 
   Future<void> _enter() async {
     setState(() => _loading = true);
@@ -26,10 +40,46 @@ class _ManageLoginPageState extends State<ManageLoginPage> {
     final game = q.docs.first;
     if ((game['password'] ?? '') == _passCtrl.text.trim()) {
       if (!mounted) return;
+      final gameData = game.data();
+      await SessionService.saveManaged(
+        gameId:   game.id,
+        joinCode: game['joinCode'],
+        title:    gameData['title'] as String? ?? '',
+      );
+      if (!mounted) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) =>
           AdminShell(gameId: game.id, joinCode: game['joinCode'])));
     } else {
       _snack('Incorrect password');
+    }
+  }
+
+  Future<void> _rejoinLastGame() async {
+    final session = _savedSession;
+    if (session == null) return;
+    setState(() { _rejoinLoading = true; });
+
+    try {
+      final gameDoc = await FirebaseFirestore.instance
+          .collection('games').doc(session['gameId']).get();
+
+      if (!gameDoc.exists) {
+        await SessionService.clearManaged();
+        setState(() { _savedSession = null; _rejoinLoading = false; });
+        _snack('That game no longer exists.');
+        return;
+      }
+
+      if (!mounted) return;
+      Navigator.push(context, MaterialPageRoute(builder: (_) =>
+          AdminShell(
+            gameId:   session['gameId']!,
+            joinCode: session['joinCode']!,
+          )));
+      setState(() => _rejoinLoading = false);
+    } catch (e) {
+      setState(() => _rejoinLoading = false);
+      _snack('Error: $e');
     }
   }
 
@@ -76,6 +126,52 @@ class _ManageLoginPageState extends State<ManageLoginPage> {
               onPressed: () => setState(() => _obsPass = !_obsPass)))),
         const SizedBox(height: 32),
         ScavPrimaryButton(label: 'Enter Dashboard', isLoading: _loading, onPressed: _enter),
+
+        // ── Last managed game ─────────────────────────────
+        if (_savedSession != null) ...[
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: Divider(color: ScavColors.border)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text('or', style: TextStyle(color: ScavColors.textMuted, fontSize: 12))),
+            Expanded(child: Divider(color: ScavColors.border)),
+          ]),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _rejoinLoading ? null : _rejoinLastGame,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: ScavColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: ScavColors.border)),
+              child: Row(children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: ScavColors.surfaceHi,
+                    borderRadius: BorderRadius.circular(10)),
+                  child: const Center(child: Text('🔄', style: TextStyle(fontSize: 18)))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Continue managing', style: TextStyle(
+                    color: ScavColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                    _savedSession!['title']!.isNotEmpty
+                        ? _savedSession!['title']!
+                        : 'Code: ${_savedSession!['joinCode']}',
+                    style: const TextStyle(color: ScavColors.textSecondary, fontSize: 12)),
+                ])),
+                _rejoinLoading
+                    ? const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: ScavColors.accent))
+                    : const Text('→', style: TextStyle(color: ScavColors.textMuted, fontSize: 18)),
+              ]),
+            ),
+          ),
+        ],
       ],
     )),
   );

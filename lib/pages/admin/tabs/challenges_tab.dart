@@ -17,6 +17,9 @@ class ChallengesTab extends StatefulWidget {
 class _ChallengesTabState extends State<ChallengesTab> {
   final _service = ChallengeService();
 
+  // Kept in sync by the StreamBuilder so _showAddSheet can read it
+  List<QueryDocumentSnapshot> _currentDocs = [];
+
   void _showAddSheet({String? editId, Map<String, dynamic>? existing}) {
     final titleCtrl   = TextEditingController(text: existing?['title'] ?? '');
     final descCtrl    = TextEditingController(text: existing?['description'] ?? '');
@@ -30,6 +33,8 @@ class _ChallengesTabState extends State<ChallengesTab> {
     bool released = existing?['released'] ?? true;
     bool hasTimer = existing?['releaseAfterMinutes'] != null;
     int timerMins = existing?['releaseAfterMinutes'] ?? 30;
+    bool hasPrereq = existing?['unlocksAfterChallengeId'] != null;
+    String? prereqId = existing?['unlocksAfterChallengeId'] as String?;
     String? error;
 
     // Preload location
@@ -114,9 +119,9 @@ class _ChallengesTabState extends State<ChallengesTab> {
                     final r = await Navigator.push(context, MaterialPageRoute(
                       builder: (_) => MapPickerPage(
                         initialLat: lat, initialLng: lng)));
-                    if (r != null) setS(() {
-                      lat = r['lat']; lng = r['lng']; radius = r['radius'];
-                    });
+                    if (r != null) {
+                      setS(() { lat = r['lat']; lng = r['lng']; radius = r['radius']; });
+                    }
                   },
                 ),
                 if (lat != null)
@@ -159,7 +164,7 @@ class _ChallengesTabState extends State<ChallengesTab> {
                     Switch(
                       value: released,
                       onChanged: (v) => setS(() => released = v),
-                      activeColor: ScavColors.accent,
+                      activeThumbColor: ScavColors.accent,
                       inactiveTrackColor: ScavColors.border,
                     ),
                   ]),
@@ -175,7 +180,7 @@ class _ChallengesTabState extends State<ChallengesTab> {
                     Switch(
                       value: hasTimer,
                       onChanged: (v) => setS(() => hasTimer = v),
-                      activeColor: ScavColors.accent,
+                      activeThumbColor: ScavColors.accent,
                       inactiveTrackColor: ScavColors.border,
                     ),
                   ]),
@@ -196,6 +201,67 @@ class _ChallengesTabState extends State<ChallengesTab> {
                 ]),
               ),
 
+              // ── Prerequisite ────────────────────────────────
+              const SizedBox(height: 12),
+              Builder(builder: (_) {
+                final others = _currentDocs
+                    .where((d) => d.id != editId)
+                    .toList();
+                if (others.isEmpty) return const SizedBox.shrink();
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: ScavColors.surfaceHi,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: ScavColors.border),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('🔗  Unlock after challenge', style: TextStyle(
+                          color: ScavColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        const Text('Hidden until a specific challenge is completed',
+                          style: TextStyle(color: ScavColors.textMuted, fontSize: 11)),
+                      ])),
+                      Switch(
+                        value: hasPrereq,
+                        onChanged: (v) => setS(() {
+                          hasPrereq = v;
+                          if (!v) prereqId = null;
+                        }),
+                        activeThumbColor: ScavColors.accent,
+                        inactiveTrackColor: ScavColors.border,
+                      ),
+                    ]),
+                    if (hasPrereq) ...[
+                      const Divider(height: 16, color: ScavColors.border),
+                      _sheetLabel('Unlock when this challenge is completed'),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: prereqId,
+                        hint: const Text('Select a challenge',
+                          style: TextStyle(color: ScavColors.textMuted, fontSize: 13)),
+                        dropdownColor: ScavColors.surfaceHi,
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          isDense: true,
+                        ),
+                        items: others.map((d) {
+                          final t = (d.data() as Map<String, dynamic>)['title'] as String? ?? '—';
+                          return DropdownMenuItem(
+                            value: d.id,
+                            child: Text(t, style: const TextStyle(
+                              color: ScavColors.textPrimary, fontSize: 13)),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setS(() => prereqId = v),
+                      ),
+                    ],
+                  ]),
+                );
+              }),
+
               if (error != null) ...[
                 const SizedBox(height: 10),
                 ScavStatusBanner(error!, color: ScavColors.red, icon: Icons.error_outline),
@@ -213,6 +279,10 @@ class _ChallengesTabState extends State<ChallengesTab> {
                     setS(() => error = 'Please pick a location for this challenge.');
                     return;
                   }
+                  if (hasPrereq && prereqId == null) {
+                    setS(() => error = 'Please select which challenge unlocks this one.');
+                    return;
+                  }
 
                   final data = {
                     'title': titleCtrl.text.trim(),
@@ -222,6 +292,7 @@ class _ChallengesTabState extends State<ChallengesTab> {
                     'extraChallenge': extraCtrl.text.trim().isEmpty ? null : extraCtrl.text.trim(),
                     'released': released,
                     'releaseAfterMinutes': hasTimer ? timerMins : null,
+                    'unlocksAfterChallengeId': hasPrereq ? prereqId : null,
                     'location': (type == 'location' || type == 'location_photo') && lat != null
                         ? {'lat': lat, 'lng': lng, 'radius': radius}
                         : null,
@@ -278,9 +349,11 @@ class _ChallengesTabState extends State<ChallengesTab> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _service.getChallenges(widget.gameId),
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(
-            child: CircularProgressIndicator(color: ScavColors.accent));
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator(color: ScavColors.accent));
+          }
           final docs = snap.data!.docs;
+          _currentDocs = docs; // keep in sync for _showAddSheet
           if (docs.isEmpty) return _empty();
 
           return ListView.separated(
@@ -289,12 +362,18 @@ class _ChallengesTabState extends State<ChallengesTab> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (_, i) {
               final data = docs[i].data() as Map<String, dynamic>;
-              final title  = data['title'] ?? '';
-              final desc   = data['description'] ?? '';
-              final type   = data['type'] ?? 'photo';
-              final points = data['points'] ?? 0;
+              final title    = data['title'] ?? '';
+              final desc     = data['description'] ?? '';
+              final type     = data['type'] ?? 'photo';
+              final points   = data['points'] ?? 0;
               final released = data['released'] ?? true;
-              final timerMins = data['releaseAfterMinutes'];
+              final timerMins  = data['releaseAfterMinutes'];
+              final prereqId   = data['unlocksAfterChallengeId'] as String?;
+              // Resolve prereq title for the chip label
+              final prereqTitle = prereqId == null ? null
+                  : (docs.where((d) => d.id == prereqId).firstOrNull
+                      ?.data() as Map<String, dynamic>?)?['title'] as String?
+                      ?? 'another challenge';
 
               return GestureDetector(
                 onTap: () => _showActionSheet(docs[i].id, title, data),
@@ -327,6 +406,7 @@ class _ChallengesTabState extends State<ChallengesTab> {
                         ScavChip(challengeTypeLabel(type), color: ScavColors.textSecondary),
                         if (!released) ScavChip('Hidden', color: ScavColors.red),
                         if (timerMins != null) ScavChip('⏱ ${timerMins}m', color: ScavColors.purple),
+                        if (prereqTitle != null) ScavChip('🔗 after: $prereqTitle', color: ScavColors.amber),
                       ]),
                     ])),
                     const Icon(Icons.more_horiz, color: ScavColors.textMuted, size: 20),

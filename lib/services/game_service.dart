@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math';
 
 class GameService {
@@ -95,16 +96,25 @@ class GameService {
   }
 
   Future<void> deleteGame(String gameId) async {
-    // Delete all subcollections first
+    final storage = FirebaseStorage.instance;
+    final gameRef = _db.collection('games').doc(gameId);
+
+    final submissions = await gameRef.collection('submissions').get();
+    for (final d in submissions.docs) {
+      final url = (d.data())['mediaUrl'] as String?;
+      if (url != null && url.isNotEmpty) {
+        try { await storage.refFromURL(url).delete(); } catch (_) {}
+      }
+    }
+
     final batch = _db.batch();
-    final challenges = await _db.collection('games').doc(gameId).collection('challenges').get();
-    for (final d in challenges.docs) batch.delete(d.reference);
-    final players = await _db.collection('games').doc(gameId).collection('players').get();
-    for (final d in players.docs) batch.delete(d.reference);
-    final submissions = await _db.collection('games').doc(gameId).collection('submissions').get();
-    for (final d in submissions.docs) batch.delete(d.reference);
+    for (final d in submissions.docs) { batch.delete(d.reference); }
+    final challenges = await gameRef.collection('challenges').get();
+    for (final d in challenges.docs) { batch.delete(d.reference); }
+    final players = await gameRef.collection('players').get();
+    for (final d in players.docs) { batch.delete(d.reference); }
     await batch.commit();
-    await _db.collection('games').doc(gameId).delete();
+    await gameRef.delete();
   }
 
   Stream<DocumentSnapshot> watchGame(String gameId) =>

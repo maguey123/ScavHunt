@@ -1637,6 +1637,26 @@ input[type=range]::-moz-range-thumb {
         </div>
       </div>
     </div>
+    <div class="form-group" id="prereqGroup">
+      <label class="form-label">🔗 Unlock after challenge <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink3)">— optional</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="toggle-row" for="chPrereqEnabled" style="flex:none;padding:10px 14px">
+          <div style="margin-right:10px">
+            <div class="toggle-row-label" style="font-size:13px">Enable prerequisite</div>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="chPrereqEnabled" onchange="onPrereqChange()">
+            <div class="toggle-track"></div>
+          </div>
+        </label>
+      </div>
+      <div id="prereqSelectRow" style="display:none;margin-top:10px">
+        <select class="form-input" id="chPrereqId">
+          <option value="">Select a challenge...</option>
+        </select>
+        <div class="form-hint" style="margin-top:8px">🔗 This challenge stays hidden until the selected challenge has been completed by the player.</div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeOverlay('overlayChallenge')">Cancel</button>
       <button class="btn btn-primary" id="btnSaveChallenge" onclick="saveChallenge()">Save Challenge</button>
@@ -1662,7 +1682,7 @@ import {
   doc, query, where, orderBy, serverTimestamp, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  getStorage, ref as storageRef, getBytes
+  getStorage, ref as storageRef, getBytes, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const app = initializeApp({
@@ -2352,7 +2372,35 @@ window.cloneGame = async function() {
 
 window.deleteGame = async function() {
   if (!confirm(`Permanently delete "${currentGame?.title}"? This cannot be undone.`)) return;
-  await deleteDoc(doc(db, 'games', currentGameId));
+
+  const gameRef = doc(db, 'games', currentGameId);
+
+  // Delete Storage photos from submissions
+  const subSnap = await getDocs(collection(db, 'games', currentGameId, 'submissions'));
+  for (const s of subSnap.docs) {
+    const url = s.data().mediaUrl;
+    if (url) {
+      try {
+        const urlObj = new URL(url);
+        const pathMatch = urlObj.pathname.match(/\/o\/(.+)$/);
+        if (pathMatch) {
+          await deleteObject(storageRef(storage, decodeURIComponent(pathMatch[1])));
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Delete subcollections
+  const challSnap = await getDocs(collection(db, 'games', currentGameId, 'challenges'));
+  const playSnap  = await getDocs(collection(db, 'games', currentGameId, 'players'));
+  const deletes = [
+    ...subSnap.docs.map(d => deleteDoc(d.ref)),
+    ...challSnap.docs.map(d => deleteDoc(d.ref)),
+    ...playSnap.docs.map(d => deleteDoc(d.ref)),
+  ];
+  await Promise.all(deletes);
+
+  await deleteDoc(gameRef);
   toast('Game deleted', 'err');
   exitDashboard();
 };
@@ -2605,6 +2653,9 @@ window.openChallengeModal = function() {
   document.getElementById('chDelayMins').value = '30';
   document.getElementById('scheduleDelayRow').style.display = 'none';
   document.getElementById('scheduleGroup').style.display = 'block';
+  document.getElementById('chPrereqEnabled').checked = false;
+  document.getElementById('prereqSelectRow').style.display = 'none';
+  populatePrereqDropdown(null, null);
   document.getElementById('btnSaveChallenge').textContent = 'Add Challenge';
   clearPin();
   document.querySelector('#overlayChallenge .modal').classList.remove('wide');
@@ -2633,6 +2684,10 @@ window.editChallenge = async function(id) {
   document.getElementById('scheduleDelayRow').style.display = hasSchedule ? 'block' : 'none';
   document.getElementById('scheduleGroup').style.display = 'block';
   updateSchedulePreview();
+  const hasPrereq = !!c.unlocksAfterChallengeId;
+  document.getElementById('chPrereqEnabled').checked = hasPrereq;
+  document.getElementById('prereqSelectRow').style.display = hasPrereq ? 'block' : 'none';
+  await populatePrereqDropdown(id, c.unlocksAfterChallengeId || null);
   document.getElementById('btnSaveChallenge').textContent = 'Save Changes';
   onTypeChange();
   if ((c.type === 'location' || c.type === 'location_photo') && c.location) {
@@ -2663,6 +2718,9 @@ window.saveChallenge = async function() {
   const btn = document.getElementById('btnSaveChallenge');
   btn.disabled = true;
 
+  const prereqEnabled = document.getElementById('chPrereqEnabled').checked;
+  const prereqId = document.getElementById('chPrereqId').value;
+
   const data = { title, description: desc, type, points, released };
   if (extra) data.extraChallenge = extra;
   if (scheduled && released) {
@@ -2670,6 +2728,7 @@ window.saveChallenge = async function() {
   } else {
     data.releaseAfterMinutes = null;
   }
+  data.unlocksAfterChallengeId = (prereqEnabled && prereqId) ? prereqId : null;
   if (type === 'location' || type === 'location_photo') {
     const lat = parseFloat(document.getElementById('chLat').value);
     const lng = parseFloat(document.getElementById('chLng').value);
@@ -2708,6 +2767,26 @@ window.onScheduledChange = function() {
     updateSchedulePreview();
   }
 };
+
+window.onPrereqChange = function() {
+  const on = document.getElementById('chPrereqEnabled').checked;
+  document.getElementById('prereqSelectRow').style.display = on ? 'block' : 'none';
+};
+
+async function populatePrereqDropdown(excludeId, selectedId) {
+  const sel = document.getElementById('chPrereqId');
+  sel.innerHTML = '<option value="">Select a challenge...</option>';
+  if (!currentGameId) return;
+  const snap = await getDocs(collection(db, 'games', currentGameId, 'challenges'));
+  snap.forEach(d => {
+    if (d.id === excludeId) return;
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.data().title || '—';
+    if (selectedId && d.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
 
 function updateSchedulePreview() {
   const mins = parseInt(document.getElementById('chDelayMins').value) || 30;
