@@ -1249,6 +1249,37 @@ input[type=range]::-moz-range-thumb {
         </div>
       </label>
     </div>
+    <div class="form-group">
+      <label class="toggle-row" for="createMultiplierEnabled">
+        <div>
+          <div class="toggle-row-label">🏅 Position Multiplier</div>
+          <div class="toggle-row-sub">Bonus points for 1st, 2nd &amp; 3rd to finish each task</div>
+        </div>
+        <div class="toggle-switch">
+          <input type="checkbox" id="createMultiplierEnabled" onchange="toggleMultiplierInputs()">
+          <div class="toggle-track"></div>
+        </div>
+      </label>
+    </div>
+    <div id="multiplierInputs" style="display:none;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div>
+          <label class="form-label" style="font-size:11px;margin-bottom:4px">🥇 1st place</label>
+          <input type="number" class="form-input" id="mult1st" value="2" min="1" max="10" step="0.1" style="text-align:center">
+          <div class="form-hint" style="text-align:center;margin-top:2px">× multiplier</div>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:11px;margin-bottom:4px">🥈 2nd place</label>
+          <input type="number" class="form-input" id="mult2nd" value="1.5" min="1" max="10" step="0.1" style="text-align:center">
+          <div class="form-hint" style="text-align:center;margin-top:2px">× multiplier</div>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:11px;margin-bottom:4px">🥉 3rd place</label>
+          <input type="number" class="form-input" id="mult3rd" value="1.25" min="1" max="10" step="0.1" style="text-align:center">
+          <div class="form-hint" style="text-align:center;margin-top:2px">× multiplier</div>
+        </div>
+      </div>
+    </div>
     <button class="btn-submit" id="btnCreate" onclick="createGame()">Create Game →</button>
   </div>
 </div>
@@ -1459,6 +1490,11 @@ input[type=range]::-moz-range-thumb {
         <div class="team-progress-list" id="teamProgressList">
           <div class="spinner" style="width:20px;height:20px;margin:16px auto"></div>
         </div>
+
+        <hr class="divider">
+
+        <div style="font-weight:600;font-size:15px;margin-bottom:10px">Game Rules</div>
+        <div id="multiplierCard" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:20px"></div>
 
         <hr class="divider">
         <div style="color:var(--ink3);font-size:13px;line-height:1.7">
@@ -1757,6 +1793,10 @@ window.createGame = async function() {
   const durationHours = parseInt(document.getElementById('createDurationHours').value) || 0;
   const durationMins = parseInt(document.getElementById('createDurationMins').value) || 0;
   const maxDurationMins = durationEnabled ? (durationHours * 60 + durationMins) : null;
+  const multEnabled = document.getElementById('createMultiplierEnabled').checked;
+  const mult1st = parseFloat(document.getElementById('mult1st').value) || 2;
+  const mult2nd = parseFloat(document.getElementById('mult2nd').value) || 1.5;
+  const mult3rd = parseFloat(document.getElementById('mult3rd').value) || 1.25;
   const errEl = document.getElementById('createError');
   errEl.style.display = 'none';
 
@@ -1772,7 +1812,11 @@ window.createGame = async function() {
       title, description: desc, password: pass,
       joinCode: code, hostId: 'web-admin',
       isActive: false, published, isPublished: published,
-      startedAt: null, createdAt: serverTimestamp()
+      startedAt: null, createdAt: serverTimestamp(),
+      positionMultiplierEnabled: multEnabled,
+      firstMultiplier:  multEnabled ? mult1st : null,
+      secondMultiplier: multEnabled ? mult2nd : null,
+      thirdMultiplier:  multEnabled ? mult3rd : null,
     };
     if (maxDurationMins) gameData.durationMinutes = maxDurationMins;
     const ref = await addDoc(collection(db, 'games'), gameData);
@@ -1785,9 +1829,14 @@ window.createGame = async function() {
     document.getElementById('createDurationHours').value = '1';
     document.getElementById('createDurationMins').value = '0';
     document.getElementById('durationPreview').style.display = 'none';
+    document.getElementById('createMultiplierEnabled').checked = false;
+    document.getElementById('mult1st').value = '2';
+    document.getElementById('mult2nd').value = '1.5';
+    document.getElementById('mult3rd').value = '1.25';
     toggleDurationInputs();
+    toggleMultiplierInputs();
     btn.disabled = false; btn.textContent = 'Create Game →';
-    loadDashboard(ref.id, { title, description: desc, password: pass, joinCode: code, isActive: false, published, isPublished: published, startedAt: null, durationMinutes: maxDurationMins || null });
+    loadDashboard(ref.id, { title, description: desc, password: pass, joinCode: code, isActive: false, published, isPublished: published, startedAt: null, durationMinutes: maxDurationMins || null, positionMultiplierEnabled: multEnabled, firstMultiplier: multEnabled ? mult1st : null, secondMultiplier: multEnabled ? mult2nd : null, thirdMultiplier: multEnabled ? mult3rd : null });
   } catch (e) {
     showErr(errEl, 'Error: ' + e.message);
     btn.disabled = false; btn.textContent = 'Create Game →';
@@ -1806,6 +1855,7 @@ function loadDashboard(gameId, gameData) {
   document.getElementById('displayCode').textContent = gameData.joinCode || '—';
   updateStatusUI();
   updatePublishBtn();
+  renderMultiplierCard();
   showPage('pageDashboard');
   switchTab('overview', document.querySelector('.nav-item'));
   startAutoRefresh();
@@ -3375,6 +3425,80 @@ function genCode() {
 
 document.getElementById('managePassword').addEventListener('keydown', e => { if (e.key === 'Enter') enterGame(); });
 document.getElementById('manageCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+
+// ─── MULTIPLIER HELPERS ───────────────────────────────────────────
+window.toggleMultiplierInputs = function() {
+  const enabled = document.getElementById('createMultiplierEnabled').checked;
+  document.getElementById('multiplierInputs').style.display = enabled ? '' : 'none';
+};
+
+window.saveMultiplierSettings = async function() {
+  const enabled = document.getElementById('ovMultEnabled').checked;
+  const m1 = parseFloat(document.getElementById('ovMult1st').value) || 2;
+  const m2 = parseFloat(document.getElementById('ovMult2nd').value) || 1.5;
+  const m3 = parseFloat(document.getElementById('ovMult3rd').value) || 1.25;
+  await updateDoc(doc(db, 'games', currentGameId), {
+    positionMultiplierEnabled: enabled,
+    firstMultiplier:  enabled ? m1 : null,
+    secondMultiplier: enabled ? m2 : null,
+    thirdMultiplier:  enabled ? m3 : null,
+  });
+  currentGame.positionMultiplierEnabled = enabled;
+  currentGame.firstMultiplier  = enabled ? m1 : null;
+  currentGame.secondMultiplier = enabled ? m2 : null;
+  currentGame.thirdMultiplier  = enabled ? m3 : null;
+  renderMultiplierCard();
+  toast('Multiplier settings saved');
+};
+
+function renderMultiplierCard() {
+  const el = document.getElementById('multiplierCard');
+  if (!el) return;
+  const enabled = currentGame?.positionMultiplierEnabled;
+  const m1 = currentGame?.firstMultiplier  ?? 2;
+  const m2 = currentGame?.secondMultiplier ?? 1.5;
+  const m3 = currentGame?.thirdMultiplier  ?? 1.25;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${enabled ? '14px' : '0'}">
+      <span style="font-size:15px">🏅</span>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px;color:var(--ink)">Position Multiplier
+          <span style="margin-left:6px;font-size:11px;padding:2px 7px;border-radius:20px;font-weight:700;
+            background:${enabled ? 'var(--fire-lo)' : 'var(--surface3)'};
+            color:${enabled ? 'var(--fire)' : 'var(--ink3)'}">${enabled ? 'ON' : 'OFF'}</span>
+        </div>
+        ${enabled
+          ? `<div style="font-size:12px;color:var(--ink3);margin-top:2px">🥇 ${m1}×&nbsp;&nbsp;🥈 ${m2}×&nbsp;&nbsp;🥉 ${m3}×</div>`
+          : `<div style="font-size:12px;color:var(--ink3);margin-top:2px">Bonus points for top finishers</div>`}
+      </div>
+    </div>
+    <div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="ovMultEnabled" ${enabled ? 'checked' : ''}
+          onchange="document.getElementById('ovMultFields').style.display=this.checked?'':'none'">
+        <span style="font-size:13px;color:var(--ink)">Enable position multiplier</span>
+      </label>
+      <div id="ovMultFields" style="display:${enabled ? '' : 'none'}">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;font-weight:600">🥇 1st</div>
+            <input type="number" class="form-input" id="ovMult1st" value="${m1}" min="1" max="10" step="0.1" style="text-align:center">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;font-weight:600">🥈 2nd</div>
+            <input type="number" class="form-input" id="ovMult2nd" value="${m2}" min="1" max="10" step="0.1" style="text-align:center">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;font-weight:600">🥉 3rd</div>
+            <input type="number" class="form-input" id="ovMult3rd" value="${m3}" min="1" max="10" step="0.1" style="text-align:center">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:10px">Multiplier × base points (e.g. 2× = double points)</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveMultiplierSettings()">Save</button>
+    </div>
+  `;
+}
 
 // ─── DURATION HELPERS ─────────────────────────────────────────────
 window.toggleDurationInputs = function() {

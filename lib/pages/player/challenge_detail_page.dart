@@ -50,6 +50,13 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   DateTime? _gameStartedAt;
   int?      _gameDuration;   // minutes
 
+  // Position multiplier
+  bool   _posMultEnabled = false;
+  double _firstMult      = 2.0;
+  double _secondMult     = 1.5;
+  double _thirdMult      = 1.25;
+  String? _bonusMsg;
+
   @override
   void initState() {
     super.initState();
@@ -72,9 +79,13 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       final d = snap.data() as Map<String, dynamic>;
       final startedTs = d['startedAt'];
       setState(() {
-        _gameActive    = d['isActive'] ?? true;
-        _gameStartedAt = startedTs is Timestamp ? startedTs.toDate() : null;
-        _gameDuration  = d['durationMinutes'] as int?;
+        _gameActive      = d['isActive'] ?? true;
+        _gameStartedAt   = startedTs is Timestamp ? startedTs.toDate() : null;
+        _gameDuration    = d['durationMinutes'] as int?;
+        _posMultEnabled  = d['positionMultiplierEnabled'] ?? false;
+        _firstMult       = (d['firstMultiplier']  as num?)?.toDouble() ?? 2.0;
+        _secondMult      = (d['secondMultiplier'] as num?)?.toDouble() ?? 1.5;
+        _thirdMult       = (d['thirdMultiplier']  as num?)?.toDouble() ?? 1.25;
       });
 
       // Start a 1-second tick so the timer expiry is caught in real time
@@ -185,15 +196,16 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       final playerId = widget.playerId;
       String? imageUrl;
 
-      final existing = await _db
+      // Count ALL submissions for this challenge to determine position and detect duplicates
+      final allChallSubs = await _db
           .collection('games').doc(widget.gameId).collection('submissions')
-          .where('playerId', isEqualTo: playerId)
           .where('challengeId', isEqualTo: widget.challengeId)
           .get();
-      if (existing.docs.isNotEmpty) {
+      if (allChallSubs.docs.any((d) => (d.data())['playerId'] == playerId)) {
         setState(() { _completed = true; _submitting = false; _resultMsg = 'Already completed!'; });
         return;
       }
+      final completionPosition = allChallSubs.docs.length + 1; // 1 = 1st, 2 = 2nd, 3 = 3rd
 
       if ((type == 'photo' || type == 'location_photo') && _image != null) {
         final ref = _storage.ref().child(
@@ -217,15 +229,30 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
           .collection('completed').doc(widget.challengeId)
           .set({'completedAt': FieldValue.serverTimestamp()});
 
-      final pts = (widget.data['points'] ?? 0) as int;
+      final basePoints = (widget.data['points'] ?? 0) as int;
+      int finalPts = basePoints;
+      String? bonusMsg;
+      if (_posMultEnabled && completionPosition <= 3) {
+        final mult = completionPosition == 1 ? _firstMult
+            : completionPosition == 2 ? _secondMult
+            : _thirdMult;
+        finalPts = (basePoints * mult).round();
+        final ordinal = completionPosition == 1 ? '1st'
+            : completionPosition == 2 ? '2nd' : '3rd';
+        final medal = completionPosition == 1 ? '🥇'
+            : completionPosition == 2 ? '🥈' : '🥉';
+        bonusMsg = '$medal $mult× multiplier applied — $ordinal team to complete this!';
+      }
+
       await _db.collection('games').doc(widget.gameId)
           .collection('players').doc(playerId)
-          .set({'points': FieldValue.increment(pts)}, SetOptions(merge: true));
+          .set({'points': FieldValue.increment(finalPts)}, SetOptions(merge: true));
 
       if (!mounted) return;
       setState(() {
         _submitting = false; _completed = true;
-        _resultMsg  = '+$pts points earned! 🎉';
+        _resultMsg  = '+$finalPts points earned! 🎉';
+        _bonusMsg   = bonusMsg;
       });
 
       await Future.delayed(const Duration(seconds: 2));
@@ -427,6 +454,14 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                   : ScavColors.textSecondary,
               icon: _resultMsg!.contains('points') ? Icons.celebration_outlined : null,
             ),
+            if (_bonusMsg != null) ...[
+              const SizedBox(height: 8),
+              ScavStatusBanner(
+                _bonusMsg!,
+                color: ScavColors.amber,
+                icon: Icons.star_rounded,
+              ),
+            ],
             const SizedBox(height: 16),
           ],
 

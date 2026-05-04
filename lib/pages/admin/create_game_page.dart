@@ -17,12 +17,16 @@ class _CreateGamePageState extends State<CreateGamePage> {
   final _descCtrl  = TextEditingController();
   final _passCtrl  = TextEditingController();
 
-  bool _isLoading    = false;
-  bool _obsPass      = true;
-  bool _hasDuration  = false;
-  bool _isPublished  = false;
-  int  _durationHrs  = 1;
-  int  _durationMins = 0;
+  bool   _isLoading     = false;
+  bool   _obsPass       = true;
+  bool   _hasDuration   = false;
+  bool   _isPublished   = false;
+  int    _durationHrs   = 1;
+  int    _durationMins  = 0;
+  bool   _hasMultiplier = false;
+  double _firstMult     = 2.0;
+  double _secondMult    = 1.5;
+  double _thirdMult     = 1.25;
 
   String? _joinCode;
   String? _gameId;
@@ -46,9 +50,13 @@ class _CreateGamePageState extends State<CreateGamePage> {
         user.uid,
         _titleCtrl.text.trim(),
         _descCtrl.text.trim(),
-        password: _passCtrl.text.trim(),
-        durationMinutes: durationMins,
-        isPublished: _isPublished,
+        password:                  _passCtrl.text.trim(),
+        durationMinutes:           durationMins,
+        isPublished:               _isPublished,
+        positionMultiplierEnabled: _hasMultiplier,
+        firstMultiplier:           _hasMultiplier ? _firstMult  : null,
+        secondMultiplier:          _hasMultiplier ? _secondMult : null,
+        thirdMultiplier:           _hasMultiplier ? _thirdMult  : null,
       );
       setState(() {
         _isLoading = false;
@@ -81,10 +89,9 @@ class _CreateGamePageState extends State<CreateGamePage> {
   }
 
   Widget _buildForm() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    // Icon + heading
     Container(width: 52, height: 52,
       decoration: BoxDecoration(color: ScavColors.accentLo, borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ScavColors.accent.withOpacity(0.4))),
+        border: Border.all(color: ScavColors.accent.withValues(alpha: 0.4))),
       child: const Center(child: Text('✨', style: TextStyle(fontSize: 26)))),
     const SizedBox(height: 16),
     const Text('New Game', style: TextStyle(color: ScavColors.textPrimary,
@@ -148,7 +155,7 @@ class _CreateGamePageState extends State<CreateGamePage> {
           Switch(
             value: _hasDuration,
             onChanged: (v) => setState(() => _hasDuration = v),
-            activeColor: ScavColors.accent,
+            activeThumbColor: ScavColors.accent,
             inactiveTrackColor: ScavColors.border,
           ),
         ]),
@@ -194,9 +201,57 @@ class _CreateGamePageState extends State<CreateGamePage> {
         Switch(
           value: _isPublished,
           onChanged: (v) => setState(() => _isPublished = v),
-          activeColor: ScavColors.accent,
+          activeThumbColor: ScavColors.accent,
           inactiveTrackColor: ScavColors.border,
         ),
+      ]),
+    ),
+    const SizedBox(height: 10),
+
+    // Position multiplier toggle
+    ScavCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('🏅  Position Multiplier', style: TextStyle(color: ScavColors.textPrimary,
+              fontWeight: FontWeight.w600, fontSize: 14)),
+            SizedBox(height: 2),
+            Text('Bonus points for being 1st, 2nd or 3rd to finish a task',
+              style: TextStyle(color: ScavColors.textMuted, fontSize: 12)),
+          ])),
+          Switch(
+            value: _hasMultiplier,
+            onChanged: (v) => setState(() => _hasMultiplier = v),
+            activeThumbColor: ScavColors.accent,
+            inactiveTrackColor: ScavColors.border,
+          ),
+        ]),
+        if (_hasMultiplier) ...[
+          const Divider(height: 20, color: ScavColors.border),
+          Row(children: [
+            Expanded(child: MultiplierField(
+              label: '🥇 1st',
+              value: _firstMult,
+              onChanged: (v) => setState(() => _firstMult = v),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: MultiplierField(
+              label: '🥈 2nd',
+              value: _secondMult,
+              onChanged: (v) => setState(() => _secondMult = v),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: MultiplierField(
+              label: '🥉 3rd',
+              value: _thirdMult,
+              onChanged: (v) => setState(() => _thirdMult = v),
+            )),
+          ]),
+          const SizedBox(height: 6),
+          const Text('Multiplier applied to base points (e.g. 2× = double points)',
+            style: TextStyle(color: ScavColors.textMuted, fontSize: 11)),
+        ],
       ]),
     ),
     const SizedBox(height: 28),
@@ -212,7 +267,7 @@ class _CreateGamePageState extends State<CreateGamePage> {
       decoration: BoxDecoration(
         color: ScavColors.accentLo,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: ScavColors.accent.withOpacity(0.4)),
+        border: Border.all(color: ScavColors.accent.withValues(alpha: 0.4)),
       ),
       child: Column(children: [
         const Text('Game created! Share this code\nwith your players:',
@@ -274,5 +329,33 @@ class _NumberField extends StatelessWidget {
       decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(vertical: 10)),
       onChanged: (v) => onChanged(int.tryParse(v) ?? 0),
     );
+  }
+}
+
+class MultiplierField extends StatelessWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  const MultiplierField({super.key, required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = TextEditingController(text: value.toString());
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: ScavColors.textMuted, fontSize: 11,
+        fontWeight: FontWeight.w600)),
+      const SizedBox(height: 4),
+      TextField(
+        controller: ctrl,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: ScavColors.textPrimary, fontWeight: FontWeight.w700),
+        decoration: const InputDecoration(
+          suffixText: '×',
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 8)),
+        onChanged: (v) => onChanged(double.tryParse(v) ?? 1.0),
+      ),
+    ]);
   }
 }

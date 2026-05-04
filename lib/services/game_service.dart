@@ -18,6 +18,10 @@ class GameService {
     String password = '',
     int? durationMinutes,
     bool isPublished = false,
+    bool positionMultiplierEnabled = false,
+    double? firstMultiplier,
+    double? secondMultiplier,
+    double? thirdMultiplier,
   }) async {
     final code = _generateCode();
     final ref = await _db.collection('games').add({
@@ -27,9 +31,13 @@ class GameService {
       'password': password,
       'ownerId': uid,
       'isActive': false,
-      'isPublished': isPublished,  // app field
-      'published': isPublished,     // website field (must match)
+      'isPublished': isPublished,
+      'published': isPublished,
       'durationMinutes': durationMinutes,
+      'positionMultiplierEnabled': positionMultiplierEnabled,
+      'firstMultiplier':  positionMultiplierEnabled ? (firstMultiplier  ?? 2.0)  : null,
+      'secondMultiplier': positionMultiplierEnabled ? (secondMultiplier ?? 1.5)  : null,
+      'thirdMultiplier':  positionMultiplierEnabled ? (thirdMultiplier  ?? 1.25) : null,
       'createdAt': FieldValue.serverTimestamp(),
       'startedAt': null,
     });
